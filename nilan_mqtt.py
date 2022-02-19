@@ -8,7 +8,7 @@ from datetime import datetime
 import paho.mqtt.client as paho
 from pymodbus.client.sync import ModbusSerialClient as ModbusClient
 
-version = "0.1"
+version = "0.2"
 log_file = os.path.join(os.path.dirname(os.path.realpath(__file__)), config.mqtt_host_id +'.log')
 print(log_file)
 logging.basicConfig(filename=log_file,
