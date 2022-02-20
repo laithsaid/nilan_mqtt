@@ -1,0 +1,14 @@
+# MQTT server configuration
+mqtt_host = "192.168.50.188"
+mqtt_user = "davikachka"
+mqtt_password = "a86bc76e1aa2d642c7cba658d1df949afbc56924"
+mqtt_port = "1883"
+mqtt_topic_prefix = "nilan_comfort"
+mqtt_host_id = "CTS602"
+mqtt_device_name = "Ventilation System"
+# Home Assistant configuration
+discovery_messages = True
+#Modbus config
+parity = "N"
+modbus_port = "/dev/ttyS0"
+
