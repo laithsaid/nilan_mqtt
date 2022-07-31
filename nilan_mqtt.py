@@ -6,10 +6,13 @@ import os
 import time
 from datetime import datetime
 import paho.mqtt.client as paho
-from pymodbus.client.sync import ModbusSerialClient as ModbusClient
+import requests
+from ast import literal_eval
 
-version = "0.2"
-log_file = os.path.join(os.path.dirname(os.path.realpath(__file__)), config.mqtt_host_id +'.log')
+# from pymodbus.client.sync import ModbusSerialClient as ModbusClient
+
+version = "0.3"
+log_file = os.path.join(os.path.dirname(os.path.realpath(__file__)), config.mqtt_host_id + '.log')
 print(log_file)
 logging.basicConfig(filename=log_file,
                     filemode='a',
@@ -75,19 +78,6 @@ def state_mapping(value):
         return 'Alarm'
 
 
-def read_registers(start_reg, nr_of_regs, function):
-    modbus_client = ModbusClient(method='rtu', port=config.modbus_port, stopbits=1, bytesize=8, parity=config.parity, baudrate=19200)
-    if function == 'input registers':
-        val = modbus_client.read_input_registers(start_reg, nr_of_regs, unit=30)
-    else:
-        val = modbus_client.read_holding_registers(start_reg, nr_of_regs, unit=30)
-
-    if not val.isError():
-        return True, val.registers
-    else:
-        logging.warning("error: {}".format(val))
-        return False, ''
-
 def get_timestamp():
     ts_message = datetime.now().astimezone(get_localzone()).strftime('%Y-%m-%d %H:%M:%S%z')
 
@@ -99,175 +89,190 @@ def get_timestamp():
 
 
 def config_json(key, topic_prefix, host, device_name):
-                data = {
-                        "device": {
-                        "identifiers": ["123456"],
-                        "manufacturer" : "NILAN",
-                        "model" : "Nilan Comfort 300",
-                        "name" : device_name,
-                    },
-                        "state_topic": "",
-                        "icon": "",
-                        "name": "",
-                        "unique_id": "",
-                        "unit_of_measurement": "",
-                }
+    mqtt_data = {"device": {
+        "identifiers": ["123456"],
+        "manufacturer": "NILAN",
+        "model": "Nilan Comfort 300",
+        "name": device_name,
+    }, "state_topic": topic_prefix + "/" + host + "/" + key, "icon": "", "name": "",
+        "unique_id": host + "_" + key, "unit_of_measurement": ""}
 
-                data["state_topic"] = topic_prefix + "/"+ host + "/" + key
-                
-                data["unique_id"] = host +"_"+key
-                
-                if key == "t0_controller":
-                        data["icon"] = "mdi:thermometer"
-                        data["name"] = device_name + " Controller Board Temperature"
-                        data["unit_of_measurement"] = "°C"
-                        data["state_class"] = "measurement"
-                        data["device_class"] = "temperature"
-                        
-                elif key == "t3_exhaust":
-                        data["icon"] = "mdi:thermometer"
-                        data["name"] = device_name + " Exhaust Temperature At In Take"
-                        data["unit_of_measurement"] = "°C"
-                        data["state_class"] = "measurement"
-                        data["device_class"] = "temperature"
-                        
-                elif key == "t4_outlet":
-                        data["icon"] = "mdi:thermometer"
-                        data["name"] = device_name + " Outlet Temperature"
-                        data["unit_of_measurement"] = "°C"
-                        data["state_class"] = "measurement"
-                        data["device_class"] = "temperature"
-                        
-                elif key == "t7_inlet":
-                        data["icon"] = "mdi:thermometer"
-                        data["name"] = device_name + " Inlet Temperature After Heating Surface"
-                        data["unit_of_measurement"] = "°C"
-                        data["state_class"] = "measurement"
-                        data["device_class"] = "temperature"
+    if key == "t0_controller":
+        mqtt_data["icon"] = "mdi:thermometer"
+        mqtt_data["name"] = device_name + " Controller Board Temperature"
+        mqtt_data["unit_of_measurement"] = "°C"
+        mqtt_data["state_class"] = "measurement"
+        mqtt_data["device_class"] = "temperature"
 
-                elif key == "t8_outdoor":
-                        data["icon"] = "mdi:sun-thermometer-outline"
-                        data["name"] = device_name + " Outdoor Air Temperature At Intake"
-                        data["unit_of_measurement"] = "°C"
-                        data["state_class"] = "measurement"
-                        data["device_class"] = "temperature"
-                        
-                elif key == "t15_room":
-                        data["icon"] = "mdi:home-thermometer-outline"
-                        data["name"] = device_name + " Temperature At Control Panel"
-                        data["unit_of_measurement"] = "°C"
-                        data["state_class"] = "measurement"
-                        data["device_class"] = "temperature"
-                                                
-                elif key == "rh":
-                        data["icon"] = "mdi:water-percent"
-                        data["name"] = device_name + " Relative Humidity"   
-                        data["unit_of_measurement"] = "%"
-                        data["device_class"] = "humidity"
-                        data["state_class"] = "measurement"
-                                                
-                elif key == "run_state":
-                        data["icon"] =  "mdi:fan"
-                        data["name"] = device_name + " Running State"                  
-                        
-                elif key == "operation_mode":
-                        data["icon"] =  "mdi:cog"
-                        data["name"] = device_name + " Operation Mode"                   
-                        
-                elif key == "control_state":
-                        data["icon"] =  "mdi:state-machine"
-                        data["name"] = device_name + " Control State"                  
-                        
-                elif key == "passive_heat_exchanger_efficiency":
-                        data["unit_of_measurement"] = "%"
-                        data["icon"] =  "mdi:swap-horizontal"
-                        data["name"] = device_name + " Passive Heat Exchanger Efficiency"                  
-                        
-                elif key == "air_temperature_actual_capacity":
-                        data["unit_of_measurement"] = "%"
-                        data["icon"] =  "mdi:thermometer-lines"
-                        data["name"] = device_name + " Air Temperature Actual Capacity"                  
-                        
-                elif key == "exhaust_fan_speed":
-                        data["icon"] =  "mdi:speedometer"
-                        data["name"] = device_name + " Exhaust Fan Speed"                  
-                        
-                elif key == "inlet_fan_speed":
-                        data["icon"] =  "mdi:speedometer"
-                        data["name"] = device_name + " Inlet Fan Speed"          
-                             
-                elif key == "update":
-                        data["icon"] =  "mdi:update"
-                        data["name"] = device_name + " Updated At"
-                        data["device_class"] = "timestamp"
-                else:
-                        return None
-                       
-                # Return our built discovery config
-                return json.dumps(data)
+    elif key == "t3_exhaust":
+        mqtt_data["icon"] = "mdi:thermometer"
+        mqtt_data["name"] = device_name + " Exhaust Temperature At In Take"
+        mqtt_data["unit_of_measurement"] = "°C"
+        mqtt_data["state_class"] = "measurement"
+        mqtt_data["device_class"] = "temperature"
+
+    elif key == "t4_outlet":
+        mqtt_data["icon"] = "mdi:thermometer"
+        mqtt_data["name"] = device_name + " Outlet Temperature"
+        mqtt_data["unit_of_measurement"] = "°C"
+        mqtt_data["state_class"] = "measurement"
+        mqtt_data["device_class"] = "temperature"
+
+    elif key == "t7_inlet":
+        mqtt_data["icon"] = "mdi:thermometer"
+        mqtt_data["name"] = device_name + " Inlet Temperature After Heating Surface"
+        mqtt_data["unit_of_measurement"] = "°C"
+        mqtt_data["state_class"] = "measurement"
+        mqtt_data["device_class"] = "temperature"
+
+    elif key == "t8_outdoor":
+        mqtt_data["icon"] = "mdi:sun-thermometer-outline"
+        mqtt_data["name"] = device_name + " Outdoor Air Temperature At Intake"
+        mqtt_data["unit_of_measurement"] = "°C"
+        mqtt_data["state_class"] = "measurement"
+        mqtt_data["device_class"] = "temperature"
+
+    elif key == "t15_room":
+        mqtt_data["icon"] = "mdi:home-thermometer-outline"
+        mqtt_data["name"] = device_name + " Temperature At Control Panel"
+        mqtt_data["unit_of_measurement"] = "°C"
+        mqtt_data["state_class"] = "measurement"
+        mqtt_data["device_class"] = "temperature"
+
+    elif key == "rh":
+        mqtt_data["icon"] = "mdi:water-percent"
+        mqtt_data["name"] = device_name + " Relative Humidity"
+        mqtt_data["unit_of_measurement"] = "%"
+        mqtt_data["device_class"] = "humidity"
+        mqtt_data["state_class"] = "measurement"
+
+    elif key == "run_state":
+        mqtt_data["icon"] = "mdi:fan"
+        mqtt_data["name"] = device_name + " Running State"
+
+    elif key == "operation_mode":
+        mqtt_data["icon"] = "mdi:cog"
+        mqtt_data["name"] = device_name + " Operation Mode"
+
+    elif key == "control_state":
+        mqtt_data["icon"] = "mdi:state-machine"
+        mqtt_data["name"] = device_name + " Control State"
+
+    elif key == "passive_heat_exchanger_efficiency":
+        mqtt_data["unit_of_measurement"] = "%"
+        mqtt_data["icon"] = "mdi:swap-horizontal"
+        mqtt_data["name"] = device_name + " Passive Heat Exchanger Efficiency"
+
+    elif key == "air_temperature_actual_capacity":
+        mqtt_data["unit_of_measurement"] = "%"
+        mqtt_data["icon"] = "mdi:thermometer-lines"
+        mqtt_data["name"] = device_name + " Air Temperature Actual Capacity"
+
+    elif key == "exhaust_fan_speed":
+        mqtt_data["icon"] = "mdi:speedometer"
+        mqtt_data["name"] = device_name + " Exhaust Fan Speed"
+
+    elif key == "inlet_fan_speed":
+        mqtt_data["icon"] = "mdi:speedometer"
+        mqtt_data["name"] = device_name + " Inlet Fan Speed"
+
+    elif key == "update":
+        mqtt_data["icon"] = "mdi:update"
+        mqtt_data["name"] = device_name + " Updated At"
+        mqtt_data["device_class"] = "timestamp"
+    else:
+        return None
+
+    # Return our built discovery config
+    return json.dumps(mqtt_data)
+
 
 def publish_to_mqtt(key, value, topic_prefix, host, device_name):
-    
-                json_send = config_json(key, topic_prefix, host, device_name)
-                        
-                if(json_send is not None):
-                        client = paho.Client()
-                        client.username_pw_set(config.mqtt_user, config.mqtt_password)
-                        client.connect(config.mqtt_host, int(config.mqtt_port))
-                        if config.discovery_messages:
-                                client.publish("homeassistant/sensor/"+ topic_prefix +"/"+host+"_"+ key +"/config",json_send, qos=0)
+    json_send = config_json(key, topic_prefix, host, device_name)
 
-                        client.publish(topic_prefix +"/"+host+"/"+ key, value, qos=1)
-                        client.disconnect()
-                else:
-                        logging.warning(key + " not configured")
+    if json_send is not None:
+        client = paho.Client()
+        client.username_pw_set(config.mqtt_user, config.mqtt_password)
+        client.connect(config.mqtt_host, int(config.mqtt_port))
+        if config.discovery_messages:
+            client.publish("homeassistant/sensor/" + topic_prefix + "/" + host + "_" + key + "/config", json_send,
+                           qos=0)
+
+        client.publish(topic_prefix + "/" + host + "/" + key, value, qos=1)
+        client.disconnect()
+    else:
+        logging.warning(key + " not configured")
+
 
 while True:
     total_read_succeed = True
-    
-    read_result = []
-    read_succeed, value = read_registers(200, 22, 'input registers')
-    if read_succeed:
-        publish_to_mqtt(key = "t0_controller", value = int(value[0]) / 100, topic_prefix = config.mqtt_topic_prefix , host = config.mqtt_host_id, device_name = config.mqtt_device_name)
-        publish_to_mqtt(key = "t3_exhaust", value = int(value[3]) / 100,topic_prefix = config.mqtt_topic_prefix , host = config.mqtt_host_id, device_name = config.mqtt_device_name)
-        publish_to_mqtt(key = "t4_outlet", value = int(value[4]) / 100,topic_prefix = config.mqtt_topic_prefix , host = config.mqtt_host_id, device_name = config.mqtt_device_name)
-        publish_to_mqtt(key = "t7_inlet", value = int(value[7]) / 100,topic_prefix = config.mqtt_topic_prefix , host = config.mqtt_host_id, device_name = config.mqtt_device_name)
-        publish_to_mqtt(key = "t8_outdoor", value = int(value[8]) / 100,topic_prefix = config.mqtt_topic_prefix , host = config.mqtt_host_id, device_name = config.mqtt_device_name)
-        publish_to_mqtt(key = "t15_room", value = int(value[15]) / 100,topic_prefix = config.mqtt_topic_prefix , host = config.mqtt_host_id, device_name = config.mqtt_device_name)
-        publish_to_mqtt(key = "rh", value = int(value[21]) / 100,topic_prefix = config.mqtt_topic_prefix , host = config.mqtt_host_id, device_name = config.mqtt_device_name)
-    
+
+    resp = requests.get(config.modbus_api_url+'modbus?register=200&number=22&registerType=input')
+    data = literal_eval(resp.json()['data'])
+
+    if resp.status_code == '200':
+        publish_to_mqtt(key="t0_controller", value=int(data[0]) / 100, topic_prefix=config.mqtt_topic_prefix,
+                        host=config.mqtt_host_id, device_name=config.mqtt_device_name)
+        publish_to_mqtt(key="t3_exhaust", value=int(data[3]) / 100, topic_prefix=config.mqtt_topic_prefix,
+                        host=config.mqtt_host_id, device_name=config.mqtt_device_name)
+        publish_to_mqtt(key="t4_outlet", value=int(data[4]) / 100, topic_prefix=config.mqtt_topic_prefix,
+                        host=config.mqtt_host_id, device_name=config.mqtt_device_name)
+        publish_to_mqtt(key="t7_inlet", value=int(data[7]) / 100, topic_prefix=config.mqtt_topic_prefix,
+                        host=config.mqtt_host_id, device_name=config.mqtt_device_name)
+        publish_to_mqtt(key="t8_outdoor", value=int(data[8]) / 100, topic_prefix=config.mqtt_topic_prefix,
+                        host=config.mqtt_host_id, device_name=config.mqtt_device_name)
+        publish_to_mqtt(key="t15_room", value=int(data[15]) / 100, topic_prefix=config.mqtt_topic_prefix,
+                        host=config.mqtt_host_id, device_name=config.mqtt_device_name)
+        publish_to_mqtt(key="rh", value=int(data[21]) / 100, topic_prefix=config.mqtt_topic_prefix,
+                        host=config.mqtt_host_id, device_name=config.mqtt_device_name)
+
     else:
         total_read_succeed = False
 
-    read_succeed, value = read_registers(1000, 3, 'input registers')
-    if read_succeed:
-        publish_to_mqtt(key = "run_state", value = run_act_mapping(value[0]),topic_prefix = config.mqtt_topic_prefix , host = config.mqtt_host_id, device_name = config.mqtt_device_name)
-        publish_to_mqtt(key = "operation_mode", value = mode_act_mapping(value[1]),topic_prefix = config.mqtt_topic_prefix , host = config.mqtt_host_id, device_name = config.mqtt_device_name)
-        publish_to_mqtt(key = "control_state", value = state_mapping(value[2]),topic_prefix = config.mqtt_topic_prefix , host = config.mqtt_host_id, device_name = config.mqtt_device_name)
+    resp = requests.get(config.modbus_api_url+'modbus?register=1000&number=3&registerType=input')
+    data = literal_eval(resp.json()['data'])
+
+    if resp.status_code == '200':
+        publish_to_mqtt(key="run_state", value=run_act_mapping(data[0]), topic_prefix=config.mqtt_topic_prefix,
+                        host=config.mqtt_host_id, device_name=config.mqtt_device_name)
+        publish_to_mqtt(key="operation_mode", value=mode_act_mapping(data[1]), topic_prefix=config.mqtt_topic_prefix,
+                        host=config.mqtt_host_id, device_name=config.mqtt_device_name)
+        publish_to_mqtt(key="control_state", value=state_mapping(data[2]), topic_prefix=config.mqtt_topic_prefix,
+                        host=config.mqtt_host_id, device_name=config.mqtt_device_name)
 
     else:
         total_read_succeed = False
 
-    read_succeed, value = read_registers(1204, 3, 'input registers')
-    if read_succeed:
-        publish_to_mqtt(key = "passive_heat_exchanger_efficiency", value = int(value[0]) / 100,topic_prefix = config.mqtt_topic_prefix , host = config.mqtt_host_id, device_name = config.mqtt_device_name)
-        publish_to_mqtt(key = "air_temperature_actual_capacity", value = int(value[2]) / 100,topic_prefix = config.mqtt_topic_prefix , host = config.mqtt_host_id, device_name = config.mqtt_device_name)
+    resp = requests.get(config.modbus_api_url+'modbus?register=1204&number=3&registerType=input')
+    data = literal_eval(resp.json()['data'])
+
+    if resp.status_code == '200':
+        publish_to_mqtt(key="passive_heat_exchanger_efficiency", value=int(data[0]) / 100,
+                        topic_prefix=config.mqtt_topic_prefix, host=config.mqtt_host_id,
+                        device_name=config.mqtt_device_name)
+        publish_to_mqtt(key="air_temperature_actual_capacity", value=int(data[2]) / 100,
+                        topic_prefix=config.mqtt_topic_prefix, host=config.mqtt_host_id,
+                        device_name=config.mqtt_device_name)
     else:
         total_read_succeed = False
 
-    read_succeed, value = read_registers(200, 2, 'holding registers')
-    if read_succeed:
-        publish_to_mqtt(key = "exhaust_fan_speed", value = int(value[0]) / 100,topic_prefix = config.mqtt_topic_prefix , host = config.mqtt_host_id, device_name = config.mqtt_device_name)
-        publish_to_mqtt(key = "inlet_fan_speed", value = int(value[1]) / 100,topic_prefix = config.mqtt_topic_prefix , host = config.mqtt_host_id, device_name = config.mqtt_device_name)
+    resp = requests.get(config.modbus_api_url+'modbus?register=200&number=2&registerType=holding')
+    data = literal_eval(resp.json()['data'])
+
+    if resp.status_code == '200':
+        publish_to_mqtt(key="exhaust_fan_speed", value=int(data[0]) / 100, topic_prefix=config.mqtt_topic_prefix,
+                        host=config.mqtt_host_id, device_name=config.mqtt_device_name)
+        publish_to_mqtt(key="inlet_fan_speed", value=int(data[1]) / 100, topic_prefix=config.mqtt_topic_prefix,
+                        host=config.mqtt_host_id, device_name=config.mqtt_device_name)
     else:
         total_read_succeed = False
 
     if total_read_succeed:
-        publish_to_mqtt(key = "update", value = get_timestamp(),topic_prefix = config.mqtt_topic_prefix , host = config.mqtt_host_id, device_name = config.mqtt_device_name)
+        publish_to_mqtt(key="update", value=get_timestamp(), topic_prefix=config.mqtt_topic_prefix,
+                        host=config.mqtt_host_id, device_name=config.mqtt_device_name)
         sleepTime = 10
     else:
         logging.warning('Failed to read from modbus, retry in 10sec')
         sleepTime = 10
 
     time.sleep(sleepTime)
-    

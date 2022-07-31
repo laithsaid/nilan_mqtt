@@ -11,4 +11,5 @@ discovery_messages = True
 #Modbus config
 parity = "N"
 modbus_port = "/dev/ttyS0"
+modbus_api_url = 'http://127.0.0.1:5000/'
 
