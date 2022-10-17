@@ -1,4 +1,4 @@
-# MQTT server configuration
+# MQTT Server Configuration
 mqtt_host = "192.168.50.188"
 mqtt_user = "davikachka"
 mqtt_password = "a86bc76e1aa2d642c7cba658d1df949afbc56924"
@@ -6,10 +6,12 @@ mqtt_port = "1883"
 mqtt_topic_prefix = "nilan_comfort"
 mqtt_host_id = "CTS602"
 mqtt_device_name = "Ventilation System"
-# Home Assistant configuration
+# Home Assistant Configuration
 discovery_messages = True
-#Modbus config
+#Modbus Config
 parity = "N"
 modbus_port = "/dev/ttyS0"
 modbus_api_url = 'http://127.0.0.1:5000/'
+#Device Profile Name
+device_profile = "CTS602.json"
 
