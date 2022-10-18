@@ -6,7 +6,7 @@ case $1 in
        echo "Starting Modbus Master modbus_api"
        python3 /volume1/public/nilan/modbus_api.py
        echo "Starting Nilan MQTT Publisher nilan_mqtt"
-       python3 /volume1/public/nilan/nilan_mqtt.py --mqtt-host="192.168.1.122" --mqtt-port=1883
+       python3 /volume1/public/nilan/nilan_mqtt.py
 		 ;;
 		 
        stop)

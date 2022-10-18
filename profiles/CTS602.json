@@ -1,0 +1,158 @@
+{
+  "datapoints": [
+    {
+      "register": 200,
+      "register_type": "input",
+      "scale": 0.01,
+      "datapoint_key": "t0_controller",
+      "sensor_name": "Controller Board Temperature",
+      "icon": "mdi:thermometer",
+      "unit_of_measurement": "°C",
+      "state_class": "measurement",
+      "device_class": "temperature"
+    },
+    {
+      "register": 203,
+      "register_type": "input",
+      "scale": 0.01,
+      "datapoint_key": "t3_exhaust",
+      "sensor_name": "Exhaust Temperature At In Take",
+      "icon": "mdi:thermometer",
+      "unit_of_measurement": "°C",
+      "state_class": "measurement",
+      "device_class": "temperature"
+    },
+    {
+      "register": 204,
+      "register_type": "input",
+      "scale": 0.01,
+      "datapoint_key": "t4_outlet",
+      "sensor_name": "Outlet Temperature",
+      "icon": "mdi:thermometer",
+      "unit_of_measurement": "°C",
+      "state_class": "measurement",
+      "device_class": "temperature"
+    },
+    {
+      "register": 207,
+      "register_type": "input",
+      "scale": 0.01,
+      "datapoint_key": "t7_inlet",
+      "sensor_name": "Inlet Temperature After Heating Surface",
+      "icon": "mdi:thermometer",
+      "unit_of_measurement": "°C",
+      "state_class": "measurement",
+      "device_class": "temperature"
+    },
+    {
+      "register": 208,
+      "register_type": "input",
+      "scale": 0.01,
+      "datapoint_key": "t8_outdoor",
+      "sensor_name": "Outdoor Air Temperature At Intake",
+      "icon": "mdi:sun-thermometer-outline",
+      "unit_of_measurement": "°C",
+      "state_class": "measurement",
+      "device_class": "temperature"
+    },
+    {
+      "register": 215,
+      "register_type": "input",
+      "scale": 0.01,
+      "datapoint_key": "t15_room",
+      "sensor_name": "Temperature At Control Panel",
+      "icon": "mdi:home-thermometer-outline",
+      "unit_of_measurement": "°C",
+      "state_class": "measurement",
+      "device_class": "temperature"
+    },
+    {
+      "register": 221,
+      "register_type": "input",
+      "scale": 0.01,
+      "datapoint_key": "rh",
+      "sensor_name": "Relative Humidity",
+      "icon": "mdi:water-percent",
+      "unit_of_measurement": "%",
+      "state_class": "measurement",
+      "device_class": "humidity"
+    },
+    {
+      "register": 1000,
+      "register_type": "input",
+      "scale": 1,
+      "datapoint_key": "run_state",
+      "sensor_name": "Running State",
+      "icon": "mdi:fan",
+      "unit_of_measurement": "",
+      "state_class": "",
+      "device_class": ""
+    },
+    {
+      "register": 1001,
+      "register_type": "input",
+      "scale": 1,
+      "datapoint_key": "operation_mode",
+      "sensor_name": "Operation Mode",
+      "icon": "mdi:cog",
+      "unit_of_measurement": "",
+      "state_class": "",
+      "device_class": ""
+    },
+    {
+      "register": 1002,
+      "register_type": "input",
+      "scale": 1,
+      "datapoint_key": "control_state",
+      "sensor_name": "Control State",
+      "icon": "mdi:state-machine",
+      "unit_of_measurement": "",
+      "state_class": "",
+      "device_class": ""
+    },
+    {
+      "register": 1204,
+      "register_type": "input",
+      "scale": 0.01,
+      "datapoint_key": "passive_heat_exchanger_efficiency",
+      "sensor_name": "Passive Heat Exchanger Efficiency",
+      "icon": "mdi:swap-horizontal",
+      "unit_of_measurement": "%",
+      "state_class": "",
+      "device_class": ""
+    },
+    {
+      "register": 1206,
+      "register_type": "input",
+      "scale": 0.01,
+      "datapoint_key": "air_temperature_actual_capacity",
+      "sensor_name": "Air Temperature Actual Capacity",
+      "icon": "mdi:thermometer-lines",
+      "unit_of_measurement": "%",
+      "state_class": "",
+      "device_class": ""
+    },
+    {
+      "register": 200,
+      "register_type": "holding",
+      "scale": 0.01,
+      "datapoint_key": "exhaust_fan_speed",
+      "sensor_name": "Exhaust Fan Speed",
+      "icon": "mdi:speedometer",
+      "unit_of_measurement": "",
+      "state_class": "",
+      "device_class": ""
+    },
+    {
+      "register": 201,
+      "register_type": "holding",
+      "scale": 0.01,
+      "datapoint_key": "inlet_fan_speed",
+      "sensor_name": "Inlet Fan Speed",
+      "icon": "mdi:speedometer",
+      "unit_of_measurement": "",
+      "state_class": "",
+      "device_class": ""
+    }
+  ]
+}
