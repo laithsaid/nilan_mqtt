@@ -37,6 +37,9 @@ MAX_BLOCK = 30                  # registers per read request
 MAX_WRITES_PER_MIN = 20
 CLOCK_SYNC_LIMIT_S = 60         # automatic clock sync when the Nilan's clock is off by more than this
 CLOCK_SYNC_EVERY_S = 6 * 3600   # ... at most this often
+# After a clock write our CTS 602 holds the written time for ~45 s before it runs on (measured 30 Sep 2026: -46 s
+# and -44 s after two syncs, also when timed to its minute tick). So we write the time 45 s ahead.
+CLOCK_SYNC_LEAD_S = 45
 ANNOUNCED_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "announced.json")
 SCHEDULE_STATE_FILE = sched.STATE_FILE
 
@@ -344,7 +347,7 @@ class Poller(threading.Thread):
     self._rate_limit()
     unit = s["modbus"]["unit"]
     before = self.clock_drift
-    t = time.localtime()
+    t = time.localtime(time.time() + CLOCK_SYNC_LEAD_S)
     self.master.write(unit, 300, regs_mod.clock_words(t))
     back = self.master.read(unit, "holding", 300, 6)
     clock = regs_mod.decode({"kind": "clock"}, back)
@@ -352,8 +355,9 @@ class Poller(threading.Thread):
     with self.lock:
       if "clock" in self.values:
         self.values["clock"], self.raw["clock"] = clock, back
-    self._clock_check(dict(s, clock_sync=False), clock, time.mktime(t))
-    logger.info(f"Nilan clock set to {clock} by {source}" + (f" (was {before:+d} s off)" if before is not None else ""))
+    self.clock_drift = None            # the Nilan holds the written time for a while: judge it on the next reads
+    logger.info(f"Nilan clock set to {clock} (Pi time + {CLOCK_SYNC_LEAD_S} s, the controller pauses after a write) "
+                f"by {source}" + (f" (was {before:+d} s off)" if before is not None else ""))
     return {"ok": True, "value": clock}
 
   def _set_schedule(self, s, payload, source):

@@ -6,7 +6,7 @@ with a password-protected web page for settings, values, the register table and 
 Threads: poller (the only one that talks Modbus), MQTT client (paho), web page.
 """
 
-__version__ = "1.1.0"
+__version__ = "1.1.1"
 
 import signal
 import socket

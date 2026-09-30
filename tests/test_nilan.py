@@ -352,7 +352,7 @@ class TestPoller(unittest.TestCase):
     self.assertIsNotNone(self.p.clock_drift)               # the fake clock is fixed in 2026-09-30 22:38:32
     r = self.job("sync_clock", "PRESS")
     self.assertTrue(r["ok"])
-    self.assertLessEqual(abs(self.p.clock_drift), 2)
+    self.assertIsNone(self.p.clock_drift)                  # judged again on the next read
     self.assertEqual(self.p.fake.writes[-1][0], 305)
     self.assertEqual(self.p.fake.holding[305], datetime.date.today().year)
 
