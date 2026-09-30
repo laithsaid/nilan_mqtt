@@ -35,7 +35,7 @@ cooling step/offset. Not writable at all: service mode, outputs, device type.
 
 ## The page
 - Header: Nilan device type, controller software version, Modbus bus version, program version.
-- **The unit**: a schematic of the unit (outdoor / supply / extract / exhaust air, heat exchanger, fans, after-heater,
+- **The unit**: the Comfort 300 LR (right model, ducts on both ends) as in Nilan's function diagram (filters, T8/T3/T4/T7, heat exchanger, fans, after-heater,
   bypass, panel) with the live values.
 - **Values**: every enabled register; **i** opens what it is, the register number, the allowed values and what each
   option does. Writable ones have a Set control.

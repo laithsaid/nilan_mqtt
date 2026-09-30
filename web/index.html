@@ -93,78 +93,79 @@ tr.off td { color:var(--muted); }
   </section>
 
   <section class="card">
-    <h2>The unit <span class="muted">— Nilan Comfort 300 front view, live values</span></h2>
-    <svg id="diagram" viewBox="0 0 900 540" role="img" aria-label="Nilan Comfort 300 with live values">
-      <!-- wall to the outside (left) and the house (right) -->
-      <text x="16" y="24" class="small">OUTSIDE</text>
-      <text x="884" y="24" class="small" text-anchor="end">HOUSE (rooms)</text>
-      <!-- ducts above the unit: outdoor side on the left (as installed), house side on the right -->
-      <path class="cold" d="M 40 60 L 330 60 L 330 118"/>
-      <polygon class="coldfill" points="320,104 340,104 330,118"/>
-      <path class="cold" d="M 400 118 L 400 96 L 40 96"/>
-      <polygon class="coldfill" points="44,86 24,96 44,106"/>
-      <path class="warm" d="M 500 118 L 500 60 L 860 60"/>
-      <polygon class="warmfill" points="856,50 876,60 856,70"/>
-      <path class="warm" d="M 860 96 L 570 96 L 570 118"/>
-      <polygon class="warmfill" points="560,104 580,104 570,118"/>
-      <!-- values at the ducts -->
-      <text x="40" y="48" class="small">outdoor air in · T8</text>
-      <text x="200" y="48" class="big" id="dT8">–</text>
-      <text x="40" y="122" class="small">exhaust air out · T4</text>
-      <text x="200" y="124" class="big" id="dT4">–</text>
-      <text x="860" y="48" class="small" text-anchor="end">supply air to rooms · T7</text>
-      <text x="700" y="48" class="big" text-anchor="end" id="dT7">–</text>
-      <text x="860" y="122" class="small" text-anchor="end">extract air from rooms · T3 / RH</text>
-      <text x="860" y="144" class="big" text-anchor="end" id="dT3">–</text>
-      <text x="700" y="80" class="small" text-anchor="end" id="dT7target"></text>
-      <!-- the cabinet (front view, doors removed) -->
-      <rect class="unit" x="300" y="118" width="300" height="370" rx="10"/>
-      <rect x="318" y="118" width="24" height="10" class="hx"/><rect x="388" y="118" width="24" height="10" class="hx"/>
-      <rect x="488" y="118" width="24" height="10" class="hx"/><rect x="558" y="118" width="24" height="10" class="hx"/>
-      <!-- filters under the two inlets -->
-      <rect x="312" y="140" width="40" height="12" fill="none" stroke="var(--muted)" stroke-dasharray="3 2"/>
-      <rect x="552" y="140" width="40" height="12" fill="none" stroke="var(--muted)" stroke-dasharray="3 2"/>
-      <text x="332" y="170" text-anchor="middle" class="small">filter</text>
-      <text x="572" y="170" text-anchor="middle" class="small">filter</text>
+    <h2>The unit <span class="muted">— Comfort 300 LR (right model), layout after Nilan's installation manual, live values</span></h2>
+    <svg id="diagram" viewBox="0 0 900 470" role="img" aria-label="Nilan Comfort 300 LR (right model) with live values">
+      <text x="16" y="22" class="small">OUTSIDE</text>
+      <text x="884" y="22" class="small" text-anchor="end">HOUSE (rooms)</text>
+      <!-- the unit: horizontal box, ducts on both ends (right model: outdoor side on the left) -->
+      <rect class="unit" x="150" y="70" width="600" height="300" rx="10"/>
+      <text x="450" y="362" text-anchor="middle" class="small">Nilan Comfort 300 LR · CTS 602 · front view, right model</text>
+      <!-- 1 outdoor air in (top left) -> filter -> T8 -> exchanger top-left -->
+      <path class="cold" d="M 20 130 L 345 130"/>
+      <polygon class="coldfill" points="135,120 150,130 135,140"/>
+      <!-- 4 exhaust out (bottom left) <- extract fan <- T4 <- exchanger bottom-left -->
+      <path class="cold" d="M 345 230 L 20 230"/>
+      <polygon class="coldfill" points="40,220 20,230 40,240"/>
+      <!-- 3 extract in (top right) -> filter -> T3 -> exchanger top-right -->
+      <path class="warm" d="M 880 130 L 555 130"/>
+      <polygon class="warmfill" points="765,120 750,130 765,140"/>
+      <!-- 2 supply out (bottom right) <- T7 <- supply fan <- (after-heater) <- exchanger bottom-right -->
+      <path class="warm" d="M 555 230 L 880 230"/>
+      <polygon class="warmfill" points="860,220 880,230 860,240"/>
+      <!-- filters -->
+      <rect x="180" y="112" width="56" height="36" rx="3" fill="var(--card)" stroke="var(--muted)"/>
+      <path d="M 222 112 L 236 130 L 222 148" fill="none" stroke="var(--muted)"/>
+      <text x="208" y="102" text-anchor="middle" class="small">filter</text>
+      <rect x="664" y="112" width="56" height="36" rx="3" fill="var(--card)" stroke="var(--muted)"/>
+      <path d="M 678 112 L 664 130 L 678 148" fill="none" stroke="var(--muted)"/>
+      <text x="692" y="102" text-anchor="middle" class="small">filter</text>
       <!-- counter-flow heat exchanger -->
-      <polygon class="hx" points="450,190 520,240 520,380 450,430 380,380 380,240"/>
-      <text x="450" y="292" text-anchor="middle" class="small">counter-flow</text>
-      <text x="450" y="306" text-anchor="middle" class="small">heat exchanger</text>
-      <text x="450" y="334" text-anchor="middle" class="big" id="dEff">–</text>
-      <text x="450" y="352" text-anchor="middle" class="small">efficiency</text>
-      <!-- air paths inside: fresh air (cold -> warm), extract air (warm -> cold) -->
-      <path d="M 332 176 L 332 230 L 384 250" fill="none" stroke="var(--cold)" stroke-width="3" opacity=".8"/>
-      <path d="M 516 370 L 520 447" fill="none" stroke="var(--warm)" stroke-width="3" opacity=".8"/>
-      <path d="M 572 176 L 572 230 L 516 250" fill="none" stroke="var(--warm)" stroke-width="3" opacity=".8"/>
-      <path d="M 384 370 L 380 447" fill="none" stroke="var(--cold)" stroke-width="3" opacity=".8"/>
-      <!-- fans at the bottom, up to the outlets -->
-      <circle class="fan" cx="520" cy="462" r="15"/><text x="520" y="466" text-anchor="middle" class="small">fan</text>
-      <text x="560" y="506" text-anchor="middle" id="dSupplyFan">–</text>
-      <text x="560" y="522" text-anchor="middle" class="small">supply fan</text>
-      <circle class="fan" cx="380" cy="462" r="15"/><text x="380" y="466" text-anchor="middle" class="small">fan</text>
-      <text x="340" y="506" text-anchor="middle" id="dExhaustFan">–</text>
-      <text x="340" y="522" text-anchor="middle" class="small">extract fan</text>
-      <path d="M 535 462 L 590 462 L 590 200 L 512 200 L 512 128" fill="none" stroke="var(--warm)" stroke-width="3" opacity=".8"/>
-      <path d="M 365 462 L 310 462 L 310 200 L 400 200 L 400 128" fill="none" stroke="var(--cold)" stroke-width="3" opacity=".8"/>
-      <!-- after-heater in the supply path -->
-      <rect class="heater" x="578" y="290" width="24" height="34" rx="3" id="dHeaterBox"/>
-      <text x="614" y="304" class="small">after-heater</text>
-      <text x="614" y="322" id="dHeater">–</text>
-      <!-- bypass damper -->
-      <text x="450" y="212" text-anchor="middle" class="small" id="dBypass">bypass</text>
+      <polygon class="hx" points="365,90 535,90 575,180 535,270 365,270 325,180"/>
+      <text x="450" y="160" text-anchor="middle" class="small">counter-flow heat exchanger</text>
+      <text x="450" y="190" text-anchor="middle" class="big" id="dEff">–</text>
+      <text x="450" y="208" text-anchor="middle" class="small">efficiency</text>
+      <!-- sensors -->
+      <circle cx="282" cy="130" r="5" fill="var(--card)" stroke="var(--fg)"/><text x="282" y="115" text-anchor="middle" class="small">T8</text>
+      <circle cx="610" cy="130" r="5" fill="var(--card)" stroke="var(--fg)"/><text x="610" y="115" text-anchor="middle" class="small">T3 · RH</text>
+      <circle cx="322" cy="230" r="5" fill="var(--card)" stroke="var(--fg)"/><text x="322" y="252" text-anchor="middle" class="small">T4</text>
+      <circle cx="715" cy="230" r="5" fill="var(--card)" stroke="var(--fg)"/><text x="715" y="252" text-anchor="middle" class="small">T7</text>
+      <!-- fans -->
+      <circle class="fan" cx="208" cy="230" r="17"/><text x="208" y="234" text-anchor="middle" class="small">fan</text>
+      <text x="208" y="268" text-anchor="middle" id="dExhaustFan">–</text>
+      <text x="208" y="284" text-anchor="middle" class="small">extract fan</text>
+      <circle class="fan" cx="665" cy="230" r="17"/><text x="665" y="234" text-anchor="middle" class="small">fan</text>
+      <text x="665" y="268" text-anchor="middle" id="dSupplyFan">–</text>
+      <text x="665" y="284" text-anchor="middle" class="small">supply fan</text>
+      <!-- after-heater (optional) -->
+      <rect class="heater" x="596" y="210" width="26" height="40" rx="3" stroke-dasharray="4 3" id="dHeaterBox"/>
+      <text x="609" y="300" text-anchor="middle" class="small">after-heater</text>
+      <text x="609" y="316" text-anchor="middle" id="dHeater">–</text>
+      <!-- bypass: outdoor air around the exchanger to the supply side -->
+      <path d="M 296 130 L 296 330 L 585 330 L 585 230" fill="none" stroke="var(--cold)" stroke-width="3" stroke-dasharray="7 5" opacity=".7"/>
+      <rect x="430" y="316" width="40" height="28" rx="3" fill="var(--card)" stroke="var(--muted)"/>
+      <line x1="440" y1="340" x2="460" y2="320" stroke="var(--fg)" stroke-width="2"/>
+      <text x="450" y="306" text-anchor="middle" class="small" id="dBypass">bypass damper</text>
       <!-- condensate drain -->
-      <text x="450" y="480" text-anchor="middle" class="small">condensate drain</text>
+      <path d="M 170 370 L 170 392" stroke="var(--muted)" stroke-width="3"/>
+      <text x="180" y="390" class="small">condensate drain</text>
+      <!-- values at the ducts -->
+      <text x="20" y="100" class="small">1 outdoor air in · T8</text>
+      <text x="20" y="160" class="big" id="dT8">–</text>
+      <text x="20" y="215" class="small">4 exhaust air out · T4</text>
+      <text x="20" y="262" class="big" id="dT4">–</text>
+      <text x="880" y="100" class="small" text-anchor="end">3 extract air from rooms · T3 / RH</text>
+      <text x="880" y="160" class="big" text-anchor="end" id="dT3">–</text>
+      <text x="880" y="215" class="small" text-anchor="end">2 supply air to rooms · T7</text>
+      <text x="880" y="262" class="big" text-anchor="end" id="dT7">–</text>
+      <text x="880" y="280" class="small" text-anchor="end" id="dT7target"></text>
       <!-- panel in a room -->
-      <rect class="room" x="690" y="220" width="190" height="84" rx="8"/>
-      <text x="702" y="242" class="small">control panel (room) · T15</text>
-      <text x="702" y="268" class="big" id="dT15">–</text>
-      <text x="702" y="290" class="small" id="dSet"></text>
+      <rect class="room" x="690" y="390" width="190" height="74" rx="8"/>
+      <text x="702" y="410" class="small">control panel (room) · T15</text>
+      <text x="702" y="434" class="big" id="dT15">–</text>
+      <text x="702" y="454" class="small" id="dSet"></text>
       <!-- status -->
-      <text x="16" y="250" id="dState" class="small"></text>
-      <text x="16" y="270" id="dDisplay" class="small"></text>
-      <text x="16" y="300" class="small">Outdoor side on the left as installed.</text>
-      <text x="16" y="316" class="small">Duct order per side and inside layout</text>
-      <text x="16" y="332" class="small">are illustrative.</text>
+      <text x="16" y="430" id="dState"></text>
+      <text x="16" y="452" id="dDisplay" class="small"></text>
     </svg>
   </section>
 
