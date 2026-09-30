@@ -1,3 +1,8 @@
+__pycache__/
 .venv
-Pipfile*
-config.py
+settings.json
+settings.json.tmp
+announced.json
+announced.json.tmp
+web_auth.json
+web_*.pem

@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nilan ventilation – log in</title>
+<style>
+:root { --bg:#f6f7f9; --card:#fff; --fg:#1d2330; --muted:#667085; --line:#e3e6eb; --accent:#1f6feb; --bad:#cf222e; }
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#0f1318; --card:#171c23; --fg:#e6edf3; --muted:#8b949e; --line:#2a313b; --accent:#58a6ff; --bad:#f85149; }
+}
+* { box-sizing: border-box; }
+body { margin:0; background:var(--bg); color:var(--fg); font:14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+main { max-width:360px; margin:12vh auto 0; padding:16px; }
+.card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:20px; }
+h1 { font-size:20px; margin:0 0 14px; }
+label { display:block; font-size:12px; color:var(--muted); margin:10px 0 4px; }
+input { width:100%; padding:8px 10px; border:1px solid var(--line); border-radius:6px; background:var(--bg); color:var(--fg); font:inherit; }
+button { margin-top:16px; width:100%; padding:9px; border-radius:6px; border:1px solid var(--accent); background:var(--accent); color:#fff; font:inherit; cursor:pointer; }
+button:disabled { opacity:.6; cursor:default; }
+#msg { color:var(--bad); min-height:1.4em; margin-top:10px; }
+</style>
+</head>
+<body>
+<main>
+  <div class="card">
+    <h1>Nilan ventilation</h1>
+    <form id="f">
+      <label for="u">User name</label>
+      <input id="u" name="username" autocomplete="username" required autofocus>
+      <label for="p">Password</label>
+      <input id="p" name="password" type="password" autocomplete="current-password" required>
+      <button id="b" type="submit">Log in</button>
+      <div id="msg" role="alert"></div>
+    </form>
+  </div>
+</main>
+<script>
+"use strict";
+document.getElementById("f").addEventListener("submit", async ev => {
+  ev.preventDefault();
+  const btn = document.getElementById("b"), msg = document.getElementById("msg");
+  btn.disabled = true; msg.textContent = "";
+  try {
+    const r = await fetch("api/login", {method: "POST", headers: {"Content-Type": "application/json", "X-Requested-With": "nilan-web"},
+      body: JSON.stringify({username: document.getElementById("u").value, password: document.getElementById("p").value})});
+    if (r.ok) { location.replace("/"); return; }
+    const body = await r.json().catch(() => ({}));
+    msg.textContent = body.error || ("Login failed (" + r.status + ")");
+  } catch (e) {
+    msg.textContent = "Could not reach the program: " + e.message;
+  }
+  btn.disabled = false;
+});
+</script>
+</body>
+</html>

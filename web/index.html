@@ -1,0 +1,402 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nilan ventilation</title>
+<style>
+:root { --bg:#f6f7f9; --card:#fff; --fg:#1d2330; --muted:#667085; --line:#e3e6eb; --accent:#1f6feb; --ok:#1a7f37; --bad:#cf222e; --warn:#9a6700; --hl:#fff8c5; }
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#0f1318; --card:#171c23; --fg:#e6edf3; --muted:#8b949e; --line:#2a313b; --accent:#58a6ff; --ok:#3fb950; --bad:#f85149; --warn:#d29922; --hl:#3b3413; }
+}
+* { box-sizing: border-box; }
+body { margin:0; background:var(--bg); color:var(--fg); font:14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+main { max-width:1100px; margin:0 auto; padding:16px; }
+h1 { font-size:20px; margin:4px 0 12px; }
+h2 { font-size:16px; margin:0 0 10px; }
+.card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:14px; margin-bottom:14px; }
+.stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; }
+.stat .k { color:var(--muted); font-size:12px; }
+.stat .v { font-size:17px; font-variant-numeric:tabular-nums; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.ok { color:var(--ok); } .bad { color:var(--bad); } .warn { color:var(--warn); }
+table { width:100%; border-collapse:collapse; font-variant-numeric:tabular-nums; }
+th, td { text-align:left; padding:5px 8px; border-bottom:1px solid var(--line); vertical-align:middle; }
+th { font-size:12px; color:var(--muted); font-weight:600; }
+td.num { text-align:right; white-space:nowrap; }
+tr.changed td.val { background:var(--hl); }
+td.val { transition:background 1.5s; }
+.scroll { overflow-x:auto; }
+input[type=text], input[type=number], input[type=password], select { width:100%; padding:6px 8px; border:1px solid var(--line); border-radius:6px; background:var(--bg); color:var(--fg); font:inherit; }
+td input[type=number], td input[type=text], td select { min-width:70px; }
+.grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:10px; }
+label { display:block; font-size:12px; color:var(--muted); margin-bottom:3px; }
+.row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+button { padding:7px 14px; border-radius:6px; border:1px solid var(--line); background:var(--card); color:var(--fg); font:inherit; cursor:pointer; }
+button.small { padding:3px 10px; }
+button.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+button:disabled { opacity:.55; cursor:default; }
+.muted { color:var(--muted); font-size:12px; }
+code { font-family:ui-monospace, Consolas, monospace; font-size:12px; }
+.badge { display:inline-block; font-size:11px; padding:1px 7px; border-radius:10px; border:1px solid var(--line); color:var(--muted); }
+.badge.write { border-color:var(--accent); color:var(--accent); }
+.ctl { display:flex; gap:6px; align-items:center; }
+.ctl input, .ctl select { width:110px; }
+.logbox { max-height:360px; overflow-y:auto; margin-top:8px; }
+.logbox td { font-size:12px; }
+tr.lvl-ERROR td.lvl, tr.lvl-CRITICAL td.lvl { color:var(--bad); font-weight:600; }
+tr.lvl-WARNING td.lvl { color:var(--warn); font-weight:600; }
+tr.off td { color:var(--muted); }
+#version { font-weight:400; margin-left:6px; }
+.tabs { display:flex; gap:6px; margin-bottom:10px; flex-wrap:wrap; }
+.tabs button.on { border-color:var(--accent); color:var(--accent); }
+</style>
+</head>
+<body>
+<main>
+  <div class="row" style="justify-content:space-between">
+    <h1>Nilan ventilation<span class="muted" id="version"></span></h1>
+    <button id="logout">Log out</button>
+  </div>
+
+  <section class="card">
+    <div class="stats" id="stats"></div>
+    <div class="muted" id="error" style="margin-top:8px"></div>
+    <div class="row" style="margin-top:10px"><button id="readNow">Read now</button><span class="muted" id="readMsg"></span></div>
+  </section>
+
+  <section class="card">
+    <h2>Values <span class="muted">— last reading; rows with "Set" may be changed by Home Assistant and this page</span></h2>
+    <div class="scroll"><table id="values"></table></div>
+    <div class="muted" id="writeMsg" style="margin-top:8px"></div>
+  </section>
+
+  <section class="card">
+    <h2>Modbus <span class="muted">— serial port and the Nilan unit</span></h2>
+    <div class="grid">
+      <div style="grid-column: span 2"><label for="port">Serial port (RS485 adapter)</label>
+        <select id="portPick"></select>
+        <input type="text" id="port" placeholder="/dev/serial/by-id/..." style="margin-top:4px"></div>
+      <div><label for="baud">Baud</label><select id="baud"><option>1200</option><option>2400</option><option>4800</option><option>9600</option><option>19200</option><option>38400</option><option>57600</option><option>115200</option></select></div>
+      <div><label for="parity">Parity</label><select id="parity"><option value="E">Even</option><option value="N">None</option><option value="O">Odd</option></select></div>
+      <div><label for="bytesize">Data bits</label><select id="bytesize"><option>8</option><option>7</option></select></div>
+      <div><label for="stopbits">Stop bits</label><select id="stopbits"><option>1</option><option>2</option></select></div>
+      <div><label for="unit">Unit address (slave id)</label><input type="number" id="unit" min="1" max="247"></div>
+      <div><label for="timeout">Answer timeout (s)</label><input type="number" id="timeout" step="0.1" min="0.1" max="5"></div>
+      <div><label for="retries">Retries</label><input type="number" id="retries" min="0" max="5"></div>
+      <div><label for="gap">Pause between frames (ms)</label><input type="number" id="gap" min="0" max="1000"></div>
+      <div><label for="interval">Read every (s)</label><input type="number" id="interval" min="5" max="3600"></div>
+    </div>
+    <p class="muted">Nilan CTS 602 default: 19200 baud, even parity, 8 data bits, 1 stop bit, unit 30. Serial port <code>simulate</code> = a fake unit for testing.</p>
+    <div class="row"><button id="test">Test connection</button><span class="muted" id="testMsg"></span></div>
+  </section>
+
+  <section class="card">
+    <h2>MQTT <span class="muted">— Home Assistant's broker</span></h2>
+    <div class="grid">
+      <div style="grid-column: span 2"><label for="host">Broker (host or IP)</label><input type="text" id="host"></div>
+      <div><label for="mport">Port</label><input type="number" id="mport" min="1" max="65535"></div>
+      <div><label for="muser">User name</label><input type="text" id="muser" autocomplete="off"></div>
+      <div><label for="mpass">Password</label><input type="password" id="mpass" autocomplete="new-password"></div>
+      <div><label for="clientId">Client id</label><input type="text" id="clientId"></div>
+      <div style="grid-column: span 2"><label for="topic">Topic</label><input type="text" id="topic"></div>
+      <div><label for="prefix">Discovery prefix</label><input type="text" id="prefix"></div>
+      <div style="grid-column: span 2"><label for="devName">Device name in Home Assistant</label><input type="text" id="devName"></div>
+      <div><label>&nbsp;</label><label style="color:var(--fg)"><input type="checkbox" id="disc"> announce to Home Assistant</label></div>
+    </div>
+    <p class="muted" id="topicHelp"></p>
+  </section>
+
+  <section class="card">
+    <h2>Registers <span class="muted">— what is read and what may be written</span></h2>
+    <p class="muted" style="margin-top:0">Off = not read, not in Home Assistant. Read = sensor. Write = Home Assistant (and this page) may change it,
+      only between min and max. Only holding registers the Nilan spec allows can be set to write.</p>
+    <div class="tabs" id="regTabs"></div>
+    <div class="scroll"><table id="regs"></table></div>
+    <h2 style="margin-top:14px">Add a register</h2>
+    <div class="grid">
+      <div><label for="cKey">Key (a-z 0-9 _)</label><input type="text" id="cKey"></div>
+      <div style="grid-column: span 2"><label for="cName">Name</label><input type="text" id="cName"></div>
+      <div><label for="cTable">Table</label><select id="cTable"><option value="input">Input</option><option value="holding">Holding</option></select></div>
+      <div><label for="cAddr">Address</label><input type="number" id="cAddr" min="0" max="65535"></div>
+      <div><label for="cKind">Type</label><select id="cKind"><option value="number">Number</option><option value="bool">On/off</option></select></div>
+      <div><label for="cScale">Scale</label><select id="cScale"><option>1</option><option>0.1</option><option>0.01</option><option>0.001</option><option>10</option></select></div>
+      <div><label for="cSigned">Sign</label><select id="cSigned"><option value="1">signed (int16)</option><option value="0">unsigned</option></select></div>
+      <div><label for="cUnit">Unit</label><input type="text" id="cUnit"></div>
+    </div>
+    <div class="row" style="margin-top:8px"><button id="addReg">Add</button><span class="muted">Added as "read". Save to use it.</span></div>
+    <div class="row" style="margin-top:14px">
+      <button class="primary" id="save">Save all settings</button>
+      <button id="reset">Discard changes</button>
+      <span id="msg" class="muted"></span>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="row" style="justify-content:space-between">
+      <h2 style="margin:0">Log <span class="muted">— newest first, since the program started (last 1000 lines)</span></h2>
+      <label class="muted">Show <select id="logLevel" style="width:auto">
+        <option value="ERROR">Errors</option>
+        <option value="WARNING">Warnings and errors</option>
+        <option value="INFO">Info, warnings and errors</option>
+      </select></label>
+    </div>
+    <div class="scroll logbox"><table id="log"></table></div>
+  </section>
+</main>
+<script>
+"use strict";
+let state = null, draft = null, dirty = false, lastValues = {}, regTab = "on", editing = false;
+const $ = id => document.getElementById(id);
+const post = (url, body) => fetch(url, {method: "POST", body: JSON.stringify(body || {}), headers: {"Content-Type": "application/json", "X-Requested-With": "nilan-web"}});
+
+function el(tag, attrs, ...kids) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (k === "class") e.className = v; else if (k.startsWith("on")) e.addEventListener(k.slice(2), v);
+    else if (k in e && typeof v !== "string") e[k] = v; else e.setAttribute(k, v);
+  }
+  for (const kid of kids) if (kid != null) e.append(kid instanceof Node ? kid : String(kid));
+  return e;
+}
+function age(t) {
+  if (!t) return "never";
+  const s = Math.max(0, Math.round(state.now - t));
+  return s < 90 ? s + " s ago" : s < 5400 ? Math.round(s / 60) + " min ago" : Math.round(s / 3600) + " h ago";
+}
+const fmt = v => v == null ? "" : String(v);
+const shortPort = p => p.split("/").pop().replace(/^usb-/, "").replace(/-if\d+-port\d+$/, "");
+
+function renderStats() {
+  $("version").textContent = state.version ? "v" + state.version : "";
+  const box = $("stats"); box.replaceChildren();
+  const stat = (k, v, cls, title) => box.append(el("div", {class: "stat", title: title || ""}, el("div", {class: "k"}, k), el("div", {class: "v " + (cls || "")}, v)));
+  const st = state.stats, s = state.settings, port = s.modbus.port;
+  const present = port === "simulate" || state.serial_ports.includes(port);
+  stat("Serial port", port ? (port === "simulate" ? "simulated unit" : shortPort(port)) + (present ? "" : " (not found)") : "not set", !port || !present ? "bad" : port === "simulate" ? "warn" : "", port);
+  const ok = st.last_ok && st.last_read && st.last_ok >= st.last_read - 1;
+  stat("Nilan", st.last_read ? (ok ? "answering" : "no answer") : "not read yet", st.last_read ? (ok ? "ok" : "bad") : "");
+  stat("Last good read", age(st.last_ok));
+  stat("Read every", s.interval_s + " s");
+  stat("Read takes", st.read_duration_s == null ? "–" : st.read_duration_s + " s");
+  stat("Reads ok / failed", st.reads_ok + " / " + st.reads_failed);
+  const m = state.mqtt;
+  stat("MQTT", m.connected ? "connected" : (m.broker ? "not connected" : "no broker set"), m.connected ? "ok" : "bad", m.broker);
+  stat("Writes ok / failed", st.writes_ok + " / " + st.writes_failed);
+  const w = st.last_write;
+  stat("Last write", w ? w.key + " " + age(w.t) : "none", w && !w.ok ? "bad" : "", w ? `${w.key} = ${w.value} by ${w.source}: ${w.ok ? "ok" : w.error}` : "");
+  const errs = [];
+  if (st.last_error && !ok) errs.push("Last error: " + st.last_error);
+  if (m.last_error) errs.push("MQTT: " + m.last_error);
+  const regErr = Object.entries(state.errors || {});
+  if (regErr.length) errs.push("Registers not answering: " + regErr.map(([k, v]) => k + " (" + v + ")").join(", "));
+  $("error").textContent = errs.join(" · ");
+}
+
+function control(r) {
+  const v = state.values[r.key];
+  let input;
+  if (r.kind === "button") {
+    return el("button", {class: "small", onclick: () => write(r, "PRESS")}, "Press");
+  } else if (r.kind === "bool") {
+    input = el("select", {}, el("option", {value: "ON"}, "On"), el("option", {value: "OFF"}, "Off"));
+    input.value = v === "ON" ? "ON" : "OFF";
+  } else if (r.kind === "enum") {
+    input = el("select", {}, ...Object.values(r.options).map(o => el("option", {value: o}, o)));
+    if (v != null) input.value = v;
+  } else {
+    input = el("input", {type: "number", min: r.min, max: r.max, step: r.step || r.scale || 1});
+    if (v != null) input.value = v;
+  }
+  input.addEventListener("focus", () => { editing = true; });
+  input.addEventListener("blur", () => { editing = false; });
+  return el("span", {class: "ctl"}, input, el("button", {class: "small", onclick: () => write(r, input.value)}, "Set"));
+}
+
+async function write(r, value) {
+  const msg = $("writeMsg");
+  msg.textContent = `Writing ${r.name} = ${value} …`; msg.className = "muted";
+  const res = await post("api/write", {key: r.key, value});
+  if (res.status === 401) { location.replace("/login"); return; }
+  const b = await res.json().catch(() => ({}));
+  if (res.ok) { msg.textContent = `${r.name}: ${b.note ? b.note + ", " : ""}now ${fmt(b.value ?? value)}`; msg.className = "ok"; }
+  else { msg.textContent = `${r.name}: not written: ${b.error || res.status}`; msg.className = "bad"; }
+  editing = false; load();
+}
+
+function renderValues() {
+  if (editing) return;
+  const v = state.values || {};
+  const rows = [el("tr", {}, el("th", {}, "Name"), el("th", {class: "num"}, "Value"), el("th", {}, "Unit"), el("th", {}, "Register"), el("th", {}, "Change"))];
+  for (const r of state.table.filter(r => r.access !== "off" && !(r.kind === "button" && r.access !== "write"))) {
+    const changed = r.key in lastValues && lastValues[r.key] !== v[r.key];
+    const err = (state.errors || {})[r.key];
+    rows.push(el("tr", {class: changed ? "changed" : ""},
+      el("td", {title: r.key}, r.name),
+      el("td", {class: "num val" + (err ? " bad" : ""), title: err || ""}, r.kind === "button" ? "" : (v[r.key] == null ? "–" : fmt(v[r.key]))),
+      el("td", {}, r.unit || ""),
+      el("td", {class: "muted"}, (r.table === "input" ? "IR " : "HR ") + r.address),
+      el("td", {}, r.access === "write" ? control(r) : "")));
+  }
+  if (rows.length === 1) rows.push(el("tr", {}, el("td", {colspan: 5, class: "muted"}, "No registers switched on.")));
+  lastValues = Object.assign({}, v);
+  $("values").replaceChildren(...rows);
+}
+
+function renderForm() {
+  const m = draft.modbus, q = draft.mqtt;
+  const pick = $("portPick");
+  pick.replaceChildren(el("option", {value: ""}, state.serial_ports.length ? "— pick a detected port —" : "— no USB serial device found —"),
+    ...state.serial_ports.map(p => el("option", {value: p}, shortPort(p))), el("option", {value: "simulate"}, "simulate (fake unit)"));
+  pick.value = state.serial_ports.includes(m.port) || m.port === "simulate" ? m.port : "";
+  $("port").value = m.port; $("baud").value = String(m.baudrate); $("parity").value = m.parity;
+  $("bytesize").value = String(m.bytesize); $("stopbits").value = String(m.stopbits); $("unit").value = m.unit;
+  $("timeout").value = m.timeout; $("retries").value = m.retries; $("gap").value = m.gap_ms; $("interval").value = draft.interval_s;
+  $("host").value = q.host; $("mport").value = q.port; $("muser").value = q.username; $("mpass").value = "";
+  $("mpass").placeholder = q.password_set ? "(saved – leave empty to keep)" : "(none)";
+  $("clientId").value = q.client_id; $("topic").value = q.topic; $("prefix").value = q.discovery_prefix;
+  $("devName").value = q.device_name; $("disc").checked = q.discovery;
+  topicHelp(); renderRegs();
+}
+
+function topicHelp() {
+  const t = $("topic").value.trim() || "…";
+  $("topicHelp").textContent = `Values: ${t}/state (JSON) · availability: ${t}/lwt and ${t}/status · commands: ${t}/set/<key>. Entities: sensor.nilan_<key>, number.nilan_<key>, select.nilan_<key>, switch.nilan_<key>.`;
+}
+
+// Effective register rows from the draft (built-in + overrides + custom)
+function draftTable() {
+  const rows = Object.values(state.builtin).map(b => Object.assign({}, b, draft.registers[b.key] || {}, {builtin: true}));
+  for (const c of draft.custom) rows.push(Object.assign({}, c, {builtin: false, writable: c.table === "holding"}));
+  return rows;
+}
+function setReg(r, field, value) {
+  if (r.builtin) {
+    const o = draft.registers[r.key] = Object.assign({access: state.builtin[r.key].access}, draft.registers[r.key] || {});
+    o[field] = value;
+  } else {
+    draft.custom.find(c => c.key === r.key)[field] = value;
+  }
+  markDirty();
+}
+
+function renderRegs() {
+  const all = draftTable();
+  const groups = {on: r => r.access !== "off", write: r => r.access === "write", off: r => r.access === "off", all: () => true};
+  const names = {on: "On", write: "Write", off: "Off", all: "All"};
+  $("regTabs").replaceChildren(...Object.keys(groups).map(g => el("button", {class: "small" + (g === regTab ? " on" : ""), onclick: () => { regTab = g; renderRegs(); }},
+    `${names[g]} (${all.filter(groups[g]).length})`)));
+  const head = el("tr", {}, ...["Name", "Key", "Register", "Type", "Unit", "Last value", "Access", "Min", "Max", ""].map(h => el("th", {}, h)));
+  const rows = all.filter(groups[regTab]).map(r => {
+    const access = el("select", {onchange: e => { setReg(r, "access", e.target.value); renderRegs(); }},
+      el("option", {value: "off"}, "off"), el("option", {value: "read"}, "read"),
+      ...(r.writable ? [el("option", {value: "write"}, "write")] : []));
+    access.value = r.access;
+    const lim = f => {
+      if (r.kind !== "number" || !r.writable) return "";
+      const x = el("input", {type: "number", step: "any", oninput: e => setReg(r, f, e.target.value === "" ? undefined : Number(e.target.value))});
+      x.value = r[f] ?? ""; x.title = r.builtin ? `spec: ${state.builtin[r.key].min} … ${state.builtin[r.key].max}` : "";
+      return x;
+    };
+    const kind = r.kind === "number" ? (r.scale && r.scale !== 1 ? "× " + r.scale : "number") : r.kind;
+    const v = state.values[r.key];
+    return el("tr", {class: r.access === "off" ? "off" : ""},
+      el("td", {}, r.name), el("td", {}, el("code", {}, r.key)),
+      el("td", {style: "white-space:nowrap"}, (r.table === "input" ? "IR " : "HR ") + r.address),
+      el("td", {title: r.options ? Object.entries(r.options).map(([k, o]) => k + " = " + o).join(", ") : ""}, kind),
+      el("td", {}, r.unit || ""), el("td", {class: "num"}, v == null ? "–" : fmt(v)),
+      el("td", {}, access), el("td", {}, lim("min")), el("td", {}, lim("max")),
+      el("td", {}, r.builtin ? "" : el("button", {class: "small", onclick: () => { draft.custom = draft.custom.filter(c => c.key !== r.key); markDirty(); renderRegs(); }}, "Remove")));
+  });
+  $("regs").replaceChildren(head, ...rows);
+}
+
+function markDirty() { dirty = true; $("msg").textContent = "Unsaved changes"; $("msg").className = "muted"; }
+
+function readForm() {
+  draft.modbus = {port: $("port").value.trim(), baudrate: Number($("baud").value), parity: $("parity").value,
+    bytesize: Number($("bytesize").value), stopbits: Number($("stopbits").value), unit: Number($("unit").value),
+    timeout: Number($("timeout").value), retries: Number($("retries").value), gap_ms: Number($("gap").value)};
+  draft.interval_s = Number($("interval").value);
+  draft.mqtt = {host: $("host").value.trim(), port: Number($("mport").value), username: $("muser").value.trim(),
+    password: $("mpass").value, client_id: $("clientId").value.trim(), topic: $("topic").value.trim(),
+    discovery_prefix: $("prefix").value.trim(), device_name: $("devName").value.trim(), discovery: $("disc").checked};
+  return draft;
+}
+
+async function load() {
+  try {
+    const r = await fetch("api/state", {cache: "no-store"});
+    if (r.status === 401) { location.replace("/login"); return; }
+    if (!r.ok) throw new Error(r.status + " " + r.statusText);
+    state = await r.json();
+    if (!draft || !dirty) { draft = structuredClone(state.settings); renderForm(); }
+    renderStats(); renderValues();
+  } catch (e) { $("error").textContent = "Page could not reach the program: " + e.message; }
+}
+
+for (const id of ["port", "baud", "parity", "bytesize", "stopbits", "unit", "timeout", "retries", "gap", "interval",
+                  "host", "mport", "muser", "mpass", "clientId", "topic", "prefix", "devName", "disc"])
+  $(id).addEventListener("input", () => { markDirty(); if (id === "topic") topicHelp(); });
+$("portPick").addEventListener("change", e => { if (e.target.value) { $("port").value = e.target.value; markDirty(); } });
+$("addReg").addEventListener("click", () => {
+  const key = $("cKey").value.trim().toLowerCase();
+  if (!/^[a-z0-9_]{1,40}$/.test(key) || draftTable().some(r => r.key === key)) { $("msg").textContent = "Key: a-z, 0-9, _ and not used yet."; $("msg").className = "bad"; return; }
+  draft.custom.push({key, name: $("cName").value.trim() || key, table: $("cTable").value, address: Number($("cAddr").value),
+    kind: $("cKind").value, scale: Number($("cScale").value), signed: $("cSigned").value === "1", unit: $("cUnit").value.trim(), access: "read"});
+  regTab = "on"; markDirty(); renderRegs();
+});
+$("reset").addEventListener("click", () => { draft = structuredClone(state.settings); dirty = false; $("msg").textContent = ""; renderForm(); });
+$("save").addEventListener("click", async () => {
+  const msg = $("msg");
+  readForm();
+  const r = await post("api/settings", draft);
+  const body = await r.json().catch(() => ({}));
+  if (r.status === 401) { location.replace("/login"); return; }
+  if (!r.ok) { msg.textContent = "Not saved: " + (body.error || r.status); msg.className = "bad"; return; }
+  state = body; draft = structuredClone(state.settings); dirty = false;
+  msg.textContent = "Saved."; msg.className = "ok"; renderForm(); renderStats(); renderValues();
+});
+$("readNow").addEventListener("click", async () => { await post("api/read"); $("readMsg").textContent = "reading …"; setTimeout(() => { $("readMsg").textContent = ""; load(); }, 2000); });
+$("test").addEventListener("click", async () => {
+  const m = $("testMsg");
+  if (dirty) { m.textContent = "Save first: the test uses the saved settings."; m.className = "warn"; return; }
+  m.textContent = "testing …"; m.className = "muted";
+  const r = await post("api/test"); const b = await r.json().catch(() => ({}));
+  m.textContent = b.ok ? `OK: the unit answers, ${b.device_type}, Modbus bus version ${b.bus_version}` : "No: " + (b.error || r.status);
+  m.className = b.ok ? "ok" : "bad";
+});
+$("logout").addEventListener("click", async () => { await post("api/logout"); location.replace("/login"); });
+
+// ---- log ----
+const LEVELS = {INFO: 1, WARNING: 2, ERROR: 3, CRITICAL: 3};
+let logLines = [], logLast = 0;
+function renderLog() {
+  const min = LEVELS[$("logLevel").value] || 1;
+  const shown = logLines.filter(l => (LEVELS[l.level] || 1) >= min).reverse();
+  const time = t => new Date(t * 1000).toLocaleString("en-GB", {day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", second: "2-digit"});
+  const rows = [el("tr", {}, el("th", {}, "Time"), el("th", {}, "Level"), el("th", {}, "Source"), el("th", {}, "Message"))];
+  for (const l of shown)
+    rows.push(el("tr", {class: "lvl-" + l.level}, el("td", {style: "white-space:nowrap"}, time(l.t)),
+      el("td", {class: "lvl"}, l.level), el("td", {title: l.where}, l.source), el("td", {}, l.message)));
+  if (!shown.length) rows.push(el("tr", {}, el("td", {colspan: 4, class: "muted"}, "Nothing at this level.")));
+  $("log").replaceChildren(...rows);
+}
+async function loadLog() {
+  try {
+    const r = await fetch("api/logs?after=" + logLast, {cache: "no-store"});
+    if (!r.ok) return;
+    const body = await r.json();
+    if (body.last < logLast) { logLines = []; logLast = 0; renderLog(); return; }
+    logLast = body.last;
+    if (body.lines.length) { logLines = logLines.concat(body.lines).slice(-1000); renderLog(); }
+  } catch (e) { /* the state poll shows connection errors */ }
+}
+try { $("logLevel").value = localStorage.getItem("nilanLogLevel") || "INFO"; } catch (e) { $("logLevel").value = "INFO"; }
+$("logLevel").addEventListener("change", e => { try { localStorage.setItem("nilanLogLevel", e.target.value); } catch (err) { /* private window */ } renderLog(); });
+renderLog();
+
+load(); setInterval(load, 3000);
+loadLog(); setInterval(loadLog, 3000);
+</script>
+</body>
+</html>

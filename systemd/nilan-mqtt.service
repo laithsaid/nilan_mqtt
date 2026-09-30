@@ -1,0 +1,17 @@
+[Unit]
+Description=nilan-mqtt: Nilan CTS 602 ventilation (Modbus RTU) to MQTT / Home Assistant
+# Start at every boot; the MQTT client waits for the broker itself.
+Wants=network-online.target
+After=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+Restart=always
+RestartSec=30s
+Type=simple
+User=laith
+WorkingDirectory=/home/laith/nilan_mqtt
+ExecStart=/usr/bin/python3 /home/laith/nilan_mqtt/nilan-mqtt.py
+
+[Install]
+WantedBy=multi-user.target
