@@ -51,7 +51,7 @@ HA: `switch.nilan_schedule`, `sensor.nilan_schedule_next`.
 
 ## Clock
 The Nilan's clock (HR 300-305) is shown next to the Pi's; "Set Nilan clock" (page) or `button.nilan_sync_clock` (HA)
-sets it to the Pi's time; optional automatic sync when it is more than 1 minute off (at most every 6 h).
+sets it to the Pi's time at the next full minute (the controller ignores the seconds); optional automatic sync when it is more than 1 minute off (at most every 6 h).
 
 ## MQTT (topic `nilan/CTS602` by default)
 - `nilan/CTS602/state`: JSON with all values (retained)

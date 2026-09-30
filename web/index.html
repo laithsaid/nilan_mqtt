@@ -633,7 +633,7 @@ $("saveSched").addEventListener("click", async () => {
 $("syncClock").addEventListener("click", async () => {
   $("clockMsg").textContent = "setting …";
   const r = await post("api/write", {key: "sync_clock", value: "PRESS"}); const b = await r.json().catch(() => ({}));
-  $("clockMsg").textContent = r.ok ? "Nilan clock set to " + b.value : "Not set: " + (b.error || r.status);
+  $("clockMsg").textContent = r.ok ? (b.note ? "OK: " + b.note + " (the Nilan ignores seconds, so we wait for :00)" : "Nilan clock set to " + b.value) : "Not set: " + (b.error || r.status);
   $("clockMsg").className = r.ok ? "ok" : "bad"; load();
 });
 $("readNow").addEventListener("click", async () => { await post("api/read"); $("readMsg").textContent = "reading …"; setTimeout(() => { $("readMsg").textContent = ""; load(); }, 2000); });

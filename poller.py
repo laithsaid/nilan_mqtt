@@ -37,9 +37,9 @@ MAX_BLOCK = 30                  # registers per read request
 MAX_WRITES_PER_MIN = 20
 CLOCK_SYNC_LIMIT_S = 60         # automatic clock sync when the Nilan's clock is off by more than this
 CLOCK_SYNC_EVERY_S = 6 * 3600   # ... at most this often
-# After a clock write our CTS 602 holds the written time for ~45 s before it runs on (measured 30 Sep 2026: -46 s
-# and -44 s after two syncs, also when timed to its minute tick). So we write the time 45 s ahead.
-CLOCK_SYNC_LEAD_S = 45
+# Our CTS 602 does not take the seconds of a written time reliably: four syncs on 30 Sep 2026 left it -46, -44, +29
+# and +29 s off. The sync is done at the Pi's full minute (hh:mm:00); expect the Nilan clock within about ±45 s, which
+# is enough for its week programs (whole minutes). The automatic sync only acts beyond CLOCK_SYNC_LIMIT_S.
 ANNOUNCED_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "announced.json")
 SCHEDULE_STATE_FILE = sched.STATE_FILE
 
@@ -72,6 +72,7 @@ class Poller(threading.Thread):
     self.errors = {}                # key -> last error for that register
     self.clock_drift = None         # Nilan clock minus Pi clock, seconds
     self.last_clock_sync = 0
+    self.clock_sync_pending = None  # who asked; done at the next full minute
     self.schedule_applied = sched.load_state(SCHEDULE_STATE_FILE)
     self.st = {"last_read": None, "last_ok": None, "last_error": None, "reads_ok": 0, "reads_failed": 0,
                "read_duration_s": None, "writes_ok": 0, "writes_failed": 0, "last_write": None, "test": None,
@@ -257,11 +258,10 @@ class Poller(threading.Thread):
     self.clock_drift = int(round(nilan - read_at))
     if s["clock_sync"] and abs(self.clock_drift) > CLOCK_SYNC_LIMIT_S and \
        time.time() - self.last_clock_sync > CLOCK_SYNC_EVERY_S:
-      logger.info(f"Nilan clock is {self.clock_drift:+d} s off: syncing it (automatic clock sync is on)")
-      try:
-        self._sync_clock(s, "automatic clock sync")
-      except (modbus_rtu.ModbusError, ValueError) as e:
-        logger.warning(f"automatic clock sync failed: {e}")
+      logger.info(f"Nilan clock is {self.clock_drift:+d} s off: syncing it at the next full minute "
+                  f"(automatic clock sync is on)")
+      self.last_clock_sync = time.time()
+      self.clock_sync_pending = "automatic clock sync"
 
   def _read(self, s):
     t0 = time.time()
@@ -347,7 +347,7 @@ class Poller(threading.Thread):
     self._rate_limit()
     unit = s["modbus"]["unit"]
     before = self.clock_drift
-    t = time.localtime(time.time() + CLOCK_SYNC_LEAD_S)
+    t = time.localtime()
     self.master.write(unit, 300, regs_mod.clock_words(t))
     back = self.master.read(unit, "holding", 300, 6)
     clock = regs_mod.decode({"kind": "clock"}, back)
@@ -356,9 +356,15 @@ class Poller(threading.Thread):
       if "clock" in self.values:
         self.values["clock"], self.raw["clock"] = clock, back
     self.clock_drift = None            # the Nilan holds the written time for a while: judge it on the next reads
-    logger.info(f"Nilan clock set to {clock} (Pi time + {CLOCK_SYNC_LEAD_S} s, the controller pauses after a write) "
-                f"by {source}" + (f" (was {before:+d} s off)" if before is not None else ""))
+    logger.info(f"Nilan clock set to {clock} by {source}" + (f" (was {before:+d} s off)" if before is not None else ""))
     return {"ok": True, "value": clock}
+
+  def _pending_clock_sync(self, s):
+    source, self.clock_sync_pending = self.clock_sync_pending, None
+    try:
+      self._sync_clock(s, source)
+    except (modbus_rtu.ModbusError, ValueError) as e:
+      logger.warning(f"clock sync ({source}) failed: {e}")
 
   def _set_schedule(self, s, payload, source):
     text = str(payload).strip().upper()
@@ -382,7 +388,8 @@ class Poller(threading.Thread):
           self.st["test"] = dict(req.result, t=time.time())
         return
       if req.key == "sync_clock":
-        req.result = self._sync_clock(s, req.source)
+        self.clock_sync_pending = req.source
+        req.result = {"ok": True, "note": "the Nilan clock is set at the next full minute"}
       elif req.key == "schedule":
         req.result = self._set_schedule(s, req.value, req.source)
       else:
@@ -449,11 +456,16 @@ class Poller(threading.Thread):
       if self.announce_wanted.is_set():
         self._announce(s)
       self._run_schedule(s)
+      if self.clock_sync_pending and time.localtime().tm_sec < 2:
+        self._pending_clock_sync(s)
       if s["modbus"]["port"] and (self.read_wanted or time.time() >= next_read):
         self.read_wanted = False
         self._read(s)
         next_read = time.time() + s["interval_s"]
-      self.wake.wait(max(0.2, min(5.0, next_read - time.time())))
+      wait = min(5.0, next_read - time.time())
+      if self.clock_sync_pending:
+        wait = min(wait, 60 - time.time() % 60 + 0.05)        # wake right after the full minute
+      self.wake.wait(max(0.05, wait))
       self.wake.clear()
 
   def stop(self):
