@@ -6,3 +6,5 @@ announced.json
 announced.json.tmp
 web_auth.json
 web_*.pem
+schedule_state.json
+schedule_state.json.tmp

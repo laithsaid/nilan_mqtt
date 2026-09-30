@@ -3,7 +3,7 @@
 Reads and controls a **Nilan Comfort 300 ventilation unit (CTS 602 controller)** over **Modbus RTU** (RS485 USB adapter)
 and connects it to **Home Assistant through MQTT**. A password-protected HTTPS web page sets everything up.
 
-Version 1.0 (2026-09-30) is a rewrite; the old Flask/pymodbus version is in the git history (commits before 1.0).
+Version 1.0 (2026-09-30) is a rewrite (1.1: descriptions, versions, diagram, week schedule, clock); the old Flask/pymodbus version is in the git history (commits before 1.0).
 Sister programs on the same Raspberry Pi: [kamstrup2mqtt](https://github.com/laithsaid/kamstrup2mqtt) (heat meter, :8080)
 and flowiq2mqtt (water meter, :8081).
 
@@ -17,6 +17,7 @@ and flowiq2mqtt (water meter, :8081).
 | `ha.py` | Home Assistant discovery: sensor / binary_sensor for read, number / select / switch / button for write |
 | `webserver.py`, `web/` | The page: values (+ change them), Modbus settings + connection test, MQTT settings, register table, log |
 | `settings.py` | Settings from the page, checked and saved in `settings.json` (mode 600, has the MQTT password) |
+| `schedule.py` | The week schedule run by this program (see below) |
 | `sim.py` | A fake Nilan (serial port `simulate`) for testing without hardware |
 
 ## Rules for writing
@@ -32,11 +33,32 @@ user functions 1/2 (mode, time, step, temperature, offset), min/max supply air t
 humidity steps / limit / max time. Available but read only by default: user function "active", air exchange mode,
 cooling step/offset. Not writable at all: service mode, outputs, device type.
 
+## The page
+- Header: Nilan device type, controller software version, Modbus bus version, program version.
+- **The unit**: a schematic of the unit (outdoor / supply / extract / exhaust air, heat exchanger, fans, after-heater,
+  bypass, panel) with the live values.
+- **Values**: every enabled register; **i** opens what it is, the register number, the allowed values and what each
+  option does. Writable ones have a Set control.
+- **Week schedule** and **Clock** (below), Modbus and MQTT settings, the register table (also with descriptions), the log.
+
+## Week schedule
+The CTS 602 (bus version 5) only lets you *choose* its own week program over Modbus (register 500: None, Program 1-3);
+the times inside those programs can't be read or changed. So this program has its own schedule: periods with weekdays,
+a start time, a ventilation step and/or a room setpoint. A period is applied once when it starts; changes from the
+panel, the page or HA stay until the next period. Saving applies the current period at once; after a restart the
+current period is not applied again. Turn the Nilan's own program to None when using it (the page warns).
+HA: `switch.nilan_schedule`, `sensor.nilan_schedule_next`.
+
+## Clock
+The Nilan's clock (HR 300-305) is shown next to the Pi's; "Set Nilan clock" (page) or `button.nilan_sync_clock` (HA)
+sets it to the Pi's time; optional automatic sync when it is more than 1 minute off (at most every 6 h).
+
 ## MQTT (topic `nilan/CTS602` by default)
 - `nilan/CTS602/state`: JSON with all values (retained)
 - `nilan/CTS602/status`: `online` / `read error` (the unit stops answering; retained)
 - `nilan/CTS602/lwt`: `online` / `offline` (the program)
 - `nilan/CTS602/set/<key>`: commands, e.g. `set/temp_setpoint` = `21.5`, `set/mode` = `Auto`, `set/run` = `OFF`
+- `nilan/CTS602/attributes/<key>`: description, register and allowed values (shown as attributes in HA)
 - `homeassistant/<component>/nilan_cts602/<key>/config`: discovery; entities `sensor.nilan_<key>`, `number.nilan_<key>`, ...
 
 ## Install on the Pi

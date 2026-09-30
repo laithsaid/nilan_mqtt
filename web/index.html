@@ -5,14 +5,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Nilan ventilation</title>
 <style>
-:root { --bg:#f6f7f9; --card:#fff; --fg:#1d2330; --muted:#667085; --line:#e3e6eb; --accent:#1f6feb; --ok:#1a7f37; --bad:#cf222e; --warn:#9a6700; --hl:#fff8c5; }
+:root { --bg:#f6f7f9; --card:#fff; --fg:#1d2330; --muted:#667085; --line:#e3e6eb; --accent:#1f6feb; --ok:#1a7f37; --bad:#cf222e; --warn:#9a6700; --hl:#fff8c5;
+        --cold:#2f81f7; --warm:#e8590c; --unit:#eef1f5; --hx:#d0d7de; }
 @media (prefers-color-scheme: dark) {
-  :root { --bg:#0f1318; --card:#171c23; --fg:#e6edf3; --muted:#8b949e; --line:#2a313b; --accent:#58a6ff; --ok:#3fb950; --bad:#f85149; --warn:#d29922; --hl:#3b3413; }
+  :root { --bg:#0f1318; --card:#171c23; --fg:#e6edf3; --muted:#8b949e; --line:#2a313b; --accent:#58a6ff; --ok:#3fb950; --bad:#f85149; --warn:#d29922; --hl:#3b3413;
+          --cold:#58a6ff; --warm:#ff8a4c; --unit:#1f252e; --hx:#39424e; }
 }
 * { box-sizing: border-box; }
 body { margin:0; background:var(--bg); color:var(--fg); font:14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
 main { max-width:1100px; margin:0 auto; padding:16px; }
-h1 { font-size:20px; margin:4px 0 12px; }
+h1 { font-size:20px; margin:4px 0 2px; }
 h2 { font-size:16px; margin:0 0 10px; }
 .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:14px; margin-bottom:14px; }
 .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; }
@@ -25,20 +27,22 @@ th { font-size:12px; color:var(--muted); font-weight:600; }
 td.num { text-align:right; white-space:nowrap; }
 tr.changed td.val { background:var(--hl); }
 td.val { transition:background 1.5s; }
+tr.info td { background:var(--bg); font-size:13px; }
+tr.info .range { margin-top:4px; color:var(--muted); }
 .scroll { overflow-x:auto; }
-input[type=text], input[type=number], input[type=password], select { width:100%; padding:6px 8px; border:1px solid var(--line); border-radius:6px; background:var(--bg); color:var(--fg); font:inherit; }
+input[type=text], input[type=number], input[type=password], input[type=time], select { width:100%; padding:6px 8px; border:1px solid var(--line); border-radius:6px; background:var(--bg); color:var(--fg); font:inherit; }
 td input[type=number], td input[type=text], td select { min-width:70px; }
 .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:10px; }
 label { display:block; font-size:12px; color:var(--muted); margin-bottom:3px; }
+label.inline { display:inline-flex; gap:4px; align-items:center; color:var(--fg); font-size:13px; margin:0; }
 .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
 button { padding:7px 14px; border-radius:6px; border:1px solid var(--line); background:var(--card); color:var(--fg); font:inherit; cursor:pointer; }
 button.small { padding:3px 10px; }
 button.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+button.i { padding:2px 9px; border-radius:12px; font-size:12px; line-height:18px; margin-left:8px; color:var(--muted); font-style:italic; font-weight:600; }
 button:disabled { opacity:.55; cursor:default; }
 .muted { color:var(--muted); font-size:12px; }
 code { font-family:ui-monospace, Consolas, monospace; font-size:12px; }
-.badge { display:inline-block; font-size:11px; padding:1px 7px; border-radius:10px; border:1px solid var(--line); color:var(--muted); }
-.badge.write { border-color:var(--accent); color:var(--accent); }
 .ctl { display:flex; gap:6px; align-items:center; }
 .ctl input, .ctl select { width:110px; }
 .logbox { max-height:360px; overflow-y:auto; margin-top:8px; }
@@ -47,8 +51,31 @@ tr.lvl-ERROR td.lvl, tr.lvl-CRITICAL td.lvl { color:var(--bad); font-weight:600;
 tr.lvl-WARNING td.lvl { color:var(--warn); font-weight:600; }
 tr.off td { color:var(--muted); }
 #version { font-weight:400; margin-left:6px; }
+#device { margin:0 0 12px; }
 .tabs { display:flex; gap:6px; margin-bottom:10px; flex-wrap:wrap; }
 .tabs button.on { border-color:var(--accent); color:var(--accent); }
+/* diagram */
+#diagram { width:100%; height:auto; display:block; }
+#diagram text { fill:var(--fg); font:13px system-ui, sans-serif; }
+#diagram text.big { font-size:17px; font-weight:600; }
+#diagram text.small { font-size:11px; fill:var(--muted); }
+#diagram .unit { fill:var(--unit); stroke:var(--line); stroke-width:2; }
+#diagram .hx { fill:var(--hx); }
+#diagram .cold { stroke:var(--cold); fill:none; stroke-width:10; stroke-linecap:round; opacity:.55; }
+#diagram .warm { stroke:var(--warm); fill:none; stroke-width:10; stroke-linecap:round; opacity:.55; }
+#diagram .coldfill { fill:var(--cold); } #diagram .warmfill { fill:var(--warm); }
+#diagram .room { fill:none; stroke:var(--line); stroke-width:2; stroke-dasharray:6 4; }
+#diagram .heater { fill:var(--card); stroke:var(--warm); stroke-width:2; }
+#diagram .fan { fill:var(--card); stroke:var(--fg); stroke-width:1.5; }
+#diagram .on { fill:var(--warn); }
+/* schedule */
+.days { display:flex; gap:2px; flex-wrap:nowrap; }
+.days label { margin:0; }
+.days input { display:none; }
+.days span { display:inline-block; width:34px; text-align:center; padding:3px 0; border:1px solid var(--line); border-radius:5px; font-size:12px; cursor:pointer; color:var(--muted); }
+.days input:checked + span { background:var(--accent); border-color:var(--accent); color:#fff; }
+#week { width:100%; height:auto; display:block; margin-top:10px; }
+#week text { font:11px system-ui, sans-serif; fill:var(--muted); }
 </style>
 </head>
 <body>
@@ -57,6 +84,7 @@ tr.off td { color:var(--muted); }
     <h1>Nilan ventilation<span class="muted" id="version"></span></h1>
     <button id="logout">Log out</button>
   </div>
+  <div class="muted" id="device"></div>
 
   <section class="card">
     <div class="stats" id="stats"></div>
@@ -65,9 +93,88 @@ tr.off td { color:var(--muted); }
   </section>
 
   <section class="card">
-    <h2>Values <span class="muted">— last reading; rows with "Set" may be changed by Home Assistant and this page</span></h2>
+    <h2>The unit <span class="muted">— schematic (not the physical duct layout), live values</span></h2>
+    <svg id="diagram" viewBox="0 0 900 420" role="img" aria-label="Schematic of the Nilan unit with live values">
+      <!-- outside / house labels -->
+      <text x="20" y="28" class="small">OUTSIDE</text>
+      <text x="880" y="28" class="small" text-anchor="end">HOUSE</text>
+      <!-- the unit -->
+      <rect class="unit" x="200" y="60" width="440" height="300" rx="14"/>
+      <text x="420" y="350" text-anchor="middle" class="small">Nilan Comfort 300 · CTS 602</text>
+      <!-- heat exchanger -->
+      <polygon class="hx" points="420,120 520,210 420,300 320,210"/>
+      <text x="420" y="198" text-anchor="middle" class="small">heat exchanger</text>
+      <text x="420" y="222" text-anchor="middle" class="big" id="dEff">–</text>
+      <text x="420" y="240" text-anchor="middle" class="small">efficiency</text>
+      <!-- fresh air: outdoor (top left) -> exchanger -> supply (top right) -->
+      <path class="cold" d="M 40 110 L 300 110 L 370 165"/>
+      <path class="warm" d="M 470 165 L 540 110 L 860 110"/>
+      <polygon class="warmfill" points="860,100 880,110 860,120"/>
+      <!-- extract air: rooms (bottom right) -> exchanger -> exhaust (bottom left) -->
+      <path class="warm" d="M 860 310 L 540 310 L 470 255"/>
+      <path class="cold" d="M 370 255 L 300 310 L 40 310"/>
+      <polygon class="coldfill" points="40,300 20,310 40,320"/>
+      <!-- bypass -->
+      <path d="M 300 110 Q 420 60 540 110" fill="none" stroke="var(--muted)" stroke-width="2" stroke-dasharray="5 5"/>
+      <text x="420" y="72" text-anchor="middle" class="small" id="dBypass">bypass</text>
+      <!-- fans + heater -->
+      <circle class="fan" cx="590" cy="110" r="16"/><text x="590" y="115" text-anchor="middle" class="small">fan</text>
+      <text x="590" y="146" text-anchor="middle" id="dSupplyFan">–</text>
+      <circle class="fan" cx="250" cy="310" r="16"/><text x="250" y="315" text-anchor="middle" class="small">fan</text>
+      <text x="250" y="346" text-anchor="middle" id="dExhaustFan">–</text>
+      <rect class="heater" x="650" y="92" width="34" height="36" rx="4" id="dHeaterBox"/>
+      <text x="667" y="115" text-anchor="middle" class="small">heat</text>
+      <text x="667" y="146" text-anchor="middle" id="dHeater">–</text>
+      <!-- sensors -->
+      <text x="40" y="96" class="small">outdoor air in · T8</text>
+      <text x="40" y="140" class="big" id="dT8">–</text>
+      <text x="40" y="296" class="small">exhaust air out · T4</text>
+      <text x="40" y="344" class="big" id="dT4">–</text>
+      <text x="860" y="96" class="small" text-anchor="end">supply air to rooms · T7</text>
+      <text x="860" y="140" class="big" text-anchor="end" id="dT7">–</text>
+      <text x="860" y="158" class="small" text-anchor="end" id="dT7target"></text>
+      <text x="860" y="296" class="small" text-anchor="end">extract air from rooms · T3 / RH</text>
+      <text x="860" y="344" class="big" text-anchor="end" id="dT3">–</text>
+      <!-- room / panel -->
+      <rect class="room" x="700" y="180" width="180" height="80" rx="8"/>
+      <text x="712" y="200" class="small">panel in room · T15</text>
+      <text x="712" y="224" class="big" id="dT15">–</text>
+      <text x="712" y="246" class="small" id="dSet"></text>
+      <!-- status -->
+      <text x="220" y="385" id="dState"></text>
+      <text x="640" y="385" text-anchor="end" id="dDisplay" class="small"></text>
+    </svg>
+  </section>
+
+  <section class="card">
+    <h2>Values <span class="muted">— last reading. ⓘ = what it is, allowed values. Rows with "Set" may be changed by Home Assistant and this page.</span></h2>
     <div class="scroll"><table id="values"></table></div>
     <div class="muted" id="writeMsg" style="margin-top:8px"></div>
+  </section>
+
+  <section class="card">
+    <h2>Week schedule <span class="muted">— run by this program</span></h2>
+    <p class="muted" style="margin-top:0">The Nilan's own week programs (1-3) can only be <i>chosen</i> over Modbus (Values → Week program); their times
+      can't be read or changed on this controller. This schedule sets the ventilation step and/or room setpoint when each period starts; a change
+      from the panel, this page or Home Assistant stays until the next period. Saving applies the current period at once.
+      Home Assistant: <code>switch.nilan_schedule</code>, <code>sensor.nilan_schedule_next</code>.</p>
+    <div class="row"><label class="inline"><input type="checkbox" id="schedOn"> schedule on</label>
+      <span class="muted" id="schedNow"></span></div>
+    <div class="warn" id="schedWarn" style="margin-top:6px"></div>
+    <div class="scroll" style="margin-top:8px"><table id="periods"></table></div>
+    <div class="row" style="margin-top:8px"><button id="addPeriod">Add period</button>
+      <button id="examplePeriods">Example: workdays / weekend</button>
+      <span class="muted">Empty step or temperature = leave it as it is.</span></div>
+    <svg id="week" viewBox="0 0 900 190"></svg>
+    <div class="row" style="margin-top:10px"><button class="primary" id="saveSched">Save schedule</button><span id="schedMsg" class="muted"></span></div>
+  </section>
+
+  <section class="card">
+    <h2>Clock <span class="muted">— the Nilan controller's own clock (week programs, alarm log)</span></h2>
+    <div class="stats" id="clockStats"></div>
+    <div class="row" style="margin-top:10px"><button id="syncClock">Set Nilan clock to the Pi's time</button>
+      <label class="inline"><input type="checkbox" id="autoClock"> keep it in sync (when more than 1 min off, at most every 6 h)</label>
+      <span class="muted" id="clockMsg"></span></div>
   </section>
 
   <section class="card">
@@ -101,7 +208,7 @@ tr.off td { color:var(--muted); }
       <div style="grid-column: span 2"><label for="topic">Topic</label><input type="text" id="topic"></div>
       <div><label for="prefix">Discovery prefix</label><input type="text" id="prefix"></div>
       <div style="grid-column: span 2"><label for="devName">Device name in Home Assistant</label><input type="text" id="devName"></div>
-      <div><label>&nbsp;</label><label style="color:var(--fg)"><input type="checkbox" id="disc"> announce to Home Assistant</label></div>
+      <div><label>&nbsp;</label><label class="inline"><input type="checkbox" id="disc"> announce to Home Assistant</label></div>
     </div>
     <p class="muted" id="topicHelp"></p>
   </section>
@@ -109,7 +216,7 @@ tr.off td { color:var(--muted); }
   <section class="card">
     <h2>Registers <span class="muted">— what is read and what may be written</span></h2>
     <p class="muted" style="margin-top:0">Off = not read, not in Home Assistant. Read = sensor. Write = Home Assistant (and this page) may change it,
-      only between min and max. Only holding registers the Nilan spec allows can be set to write.</p>
+      only between min and max. Only holding registers the Nilan spec allows can be set to write. ⓘ = description.</p>
     <div class="tabs" id="regTabs"></div>
     <div class="scroll"><table id="regs"></table></div>
     <h2 style="margin-top:14px">Add a register</h2>
@@ -145,7 +252,9 @@ tr.off td { color:var(--muted); }
 </main>
 <script>
 "use strict";
-let state = null, draft = null, dirty = false, lastValues = {}, regTab = "on", editing = false;
+let state = null, draft = null, dirty = false, schedDirty = false, lastValues = {}, regTab = "on", editing = false;
+const openInfo = new Set(), openRegInfo = new Set();
+const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const $ = id => document.getElementById(id);
 const post = (url, body) => fetch(url, {method: "POST", body: JSON.stringify(body || {}), headers: {"Content-Type": "application/json", "X-Requested-With": "nilan-web"}});
 
@@ -158,6 +267,7 @@ function el(tag, attrs, ...kids) {
   for (const kid of kids) if (kid != null) e.append(kid instanceof Node ? kid : String(kid));
   return e;
 }
+const svg = (tag, attrs, text) => { const e = document.createElementNS("http://www.w3.org/2000/svg", tag); for (const [k, v] of Object.entries(attrs || {})) e.setAttribute(k, v); if (text != null) e.textContent = text; return e; };
 function age(t) {
   if (!t) return "never";
   const s = Math.max(0, Math.round(state.now - t));
@@ -165,9 +275,13 @@ function age(t) {
 }
 const fmt = v => v == null ? "" : String(v);
 const shortPort = p => p.split("/").pop().replace(/^usb-/, "").replace(/-if\d+-port\d+$/, "");
+const V = k => state.values[k];
+const withUnit = (k, u) => V(k) == null ? "–" : V(k) + (u ? " " + u : "");
 
 function renderStats() {
   $("version").textContent = state.version ? "v" + state.version : "";
+  const d = state.device || {};
+  $("device").textContent = d.software ? `Nilan ${d.type || "CTS 602"} · controller software ${d.software} · Modbus bus version ${d.bus_version ?? "?"} · nilan-mqtt ${d.program}` : "";
   const box = $("stats"); box.replaceChildren();
   const stat = (k, v, cls, title) => box.append(el("div", {class: "stat", title: title || ""}, el("div", {class: "k"}, k), el("div", {class: "v " + (cls || "")}, v)));
   const st = state.stats, s = state.settings, port = s.modbus.port;
@@ -192,8 +306,33 @@ function renderStats() {
   $("error").textContent = errs.join(" · ");
 }
 
+function renderDiagram() {
+  const t = k => V(k) == null ? "–" : Number(V(k)).toFixed(1) + " °C";
+  $("dT8").textContent = t("t8_outdoor"); $("dT4").textContent = t("t4_outlet"); $("dT7").textContent = t("t7_inlet");
+  $("dT3").textContent = t("t3_exhaust") + (V("humidity") == null ? "" : " · " + Math.round(V("humidity")) + " %");
+  $("dT15").textContent = t("t15_room");
+  $("dT7target").textContent = V("supply_temp_target") == null ? "" : "target " + t("supply_temp_target");
+  $("dSet").textContent = V("temp_setpoint") == null ? "" : "setpoint " + V("temp_setpoint") + " °C";
+  $("dEff").textContent = withUnit("exchanger_efficiency", "%");
+  $("dSupplyFan").textContent = withUnit("supply_fan", "%"); $("dExhaustFan").textContent = withUnit("exhaust_fan", "%");
+  const heat = V("heater_output") ?? V("heat_capacity");
+  $("dHeater").textContent = heat == null ? "–" : heat + " %";
+  $("dHeaterBox").classList.toggle("on", heat > 0);
+  const bp = V("bypass_open") === "ON" ? "bypass opening" : V("bypass_close") === "ON" ? "bypass closing" : "bypass";
+  $("dBypass").textContent = bp + (V("summer") === "ON" ? " · summer" : V("summer") === "OFF" ? " · winter" : "");
+  const parts = [];
+  if (V("running") != null) parts.push(V("running") === "ON" ? "running" : "stopped");
+  if (V("mode")) parts.push("mode " + V("mode"));
+  if (V("ventilation_step")) parts.push("step " + V("ventilation_step"));
+  if (V("control_state")) parts.push(V("control_state"));
+  if (V("defrosting") === "ON") parts.push("defrosting");
+  if (V("alarm_count")) parts.push(V("alarm_count") + " alarm(s): " + V("alarm_1"));
+  $("dState").textContent = parts.join(" · ");
+  $("dDisplay").textContent = V("display_line_1") ? `panel: ${V("display_line_1")} / ${V("display_line_2") || ""}` : "";
+}
+
 function control(r) {
-  const v = state.values[r.key];
+  const v = V(r.key);
   let input;
   if (r.kind === "button") {
     return el("button", {class: "small", onclick: () => write(r, "PRESS")}, "Press");
@@ -223,6 +362,17 @@ async function write(r, value) {
   editing = false; load();
 }
 
+function infoBlock(r) {
+  const reg = (r.table === "input" ? "input register " : "holding register ") + r.address + (r.kind === "text" || r.kind === "clock" ? "-" + (r.address + (r.count || 1) - 1) : "");
+  const opts = r.options ? Object.entries(r.options).map(([k, o]) => k + " = " + o).join(" · ") : "";
+  return el("div", {}, el("div", {}, r.desc || "No description."),
+    el("div", {class: "range"}, reg + (r.scale && r.scale !== 1 ? ` · raw × ${r.scale}` : "") +
+      (r.access === "write" && r.range ? " · allowed: " + r.range : "") + (opts ? " · values: " + opts : "")));
+}
+function infoButton(set, key, rerender) {
+  return el("button", {class: "i", title: "what is this?", onclick: () => { set.has(key) ? set.delete(key) : set.add(key); rerender(); }}, "i");
+}
+
 function renderValues() {
   if (editing) return;
   const v = state.values || {};
@@ -231,15 +381,91 @@ function renderValues() {
     const changed = r.key in lastValues && lastValues[r.key] !== v[r.key];
     const err = (state.errors || {})[r.key];
     rows.push(el("tr", {class: changed ? "changed" : ""},
-      el("td", {title: r.key}, r.name),
+      el("td", {}, r.name, infoButton(openInfo, r.key, renderValues)),
       el("td", {class: "num val" + (err ? " bad" : ""), title: err || ""}, r.kind === "button" ? "" : (v[r.key] == null ? "–" : fmt(v[r.key]))),
       el("td", {}, r.unit || ""),
-      el("td", {class: "muted"}, (r.table === "input" ? "IR " : "HR ") + r.address),
+      el("td", {class: "muted", style: "white-space:nowrap"}, (r.table === "input" ? "IR " : "HR ") + r.address),
       el("td", {}, r.access === "write" ? control(r) : "")));
+    if (openInfo.has(r.key)) rows.push(el("tr", {class: "info"}, el("td", {colspan: 5}, infoBlock(r))));
   }
   if (rows.length === 1) rows.push(el("tr", {}, el("td", {colspan: 5, class: "muted"}, "No registers switched on.")));
   lastValues = Object.assign({}, v);
   $("values").replaceChildren(...rows);
+}
+
+// ---- week schedule ----
+function renderSchedule() {
+  const sc = draft.schedule, info = state.schedule || {};
+  $("schedOn").checked = sc.enabled;
+  $("schedNow").textContent = info.enabled ? `now: ${info.current || "–"} · next: ${info.next || "–"}` : "(off)";
+  const wp = V("weekly_program");
+  $("schedWarn").textContent = sc.enabled && wp && wp !== "None" ? `The Nilan's own week program is "${wp}": both will change the step. Set Values → Week program to None.` : "";
+  const head = el("tr", {}, ...["Days", "Start", "Ventilation step", "Room setpoint (°C)", ""].map(h => el("th", {}, h)));
+  const rows = sc.periods.map((p, i) => {
+    const days = el("div", {class: "days"}, ...DAYS.map((d, n) => {
+      const cb = el("input", {type: "checkbox", onchange: e => { p.days = e.target.checked ? [...new Set([...p.days, n])].sort() : p.days.filter(x => x !== n); markSched(); }});
+      cb.checked = p.days.includes(n);
+      return el("label", {}, cb, el("span", {}, d));
+    }));
+    const start = el("input", {type: "time", oninput: e => { p.start = e.target.value; markSched(); }}); start.value = p.start;
+    const step = el("select", {onchange: e => { p.step = e.target.value || null; markSched(); }}, el("option", {value: ""}, "—"), ...["0", "1", "2", "3", "4"].map(s => el("option", {value: s}, s)));
+    step.value = p.step ?? "";
+    const temp = el("input", {type: "number", min: 15, max: 28, step: 0.5, placeholder: "—", oninput: e => { p.temp = e.target.value === "" ? null : Number(e.target.value); markSched(); }});
+    temp.value = p.temp ?? "";
+    return el("tr", {}, el("td", {}, days), el("td", {}, start), el("td", {}, step), el("td", {}, temp),
+      el("td", {}, el("button", {class: "small", onclick: () => { sc.periods.splice(i, 1); markSched(); renderSchedule(); }}, "Remove")));
+  });
+  if (!rows.length) rows.push(el("tr", {}, el("td", {colspan: 5, class: "muted"}, "No periods yet.")));
+  $("periods").replaceChildren(head, ...rows);
+  renderWeek();
+}
+function markSched() { schedDirty = true; $("schedMsg").textContent = "Unsaved changes"; $("schedMsg").className = "muted"; renderWeek(); }
+
+// Week chart: one row per day, blocks coloured by step, labels with setpoint
+function renderWeek() {
+  const g = $("week"); g.replaceChildren();
+  const x0 = 50, w = 830, rowH = 22, y0 = 14;
+  const periods = draft.schedule.periods.filter(p => p.days.length && /^\d\d:\d\d$/.test(p.start));
+  const mins = p => { const [h, m] = p.start.split(":").map(Number); return h * 60 + m; };
+  // all starts in the week, sorted; each lasts until the next start (wrapping to the previous week)
+  const starts = [];
+  for (const p of periods) for (const d of p.days) starts.push({t: d * 1440 + mins(p), p});
+  starts.sort((a, b) => a.t - b.t);
+  for (let h = 0; h <= 24; h += 3) {
+    g.append(svg("text", {x: x0 + w * h / 24, y: 10, "text-anchor": "middle"}, String(h).padStart(2, "0")));
+    g.append(svg("line", {x1: x0 + w * h / 24, x2: x0 + w * h / 24, y1: y0, y2: y0 + 7 * rowH, stroke: "var(--line)"}));
+  }
+  const colour = s => s == null ? "var(--muted)" : `color-mix(in srgb, var(--accent) ${20 + 20 * Number(s)}%, transparent)`;
+  for (let d = 0; d < 7; d++) {
+    g.append(svg("text", {x: 0, y: y0 + d * rowH + 15}, DAYS[d]));
+    if (!starts.length) continue;
+    for (let i = 0; i < starts.length; i++) {
+      const a = starts[i], b = starts[(i + 1) % starts.length];
+      let from = a.t, to = b.t > a.t ? b.t : b.t + 7 * 1440;
+      // clip [from, to) to this day, also the wrapped part
+      for (const shift of [0, -7 * 1440]) {
+        const f = Math.max(from + shift, d * 1440), t = Math.min(to + shift, (d + 1) * 1440);
+        if (t <= f) continue;
+        const x = x0 + w * (f - d * 1440) / 1440, width = w * (t - f) / 1440;
+        g.append(svg("rect", {x, y: y0 + d * rowH + 2, width, height: rowH - 4, rx: 3, fill: colour(a.p.step), stroke: "var(--line)"}));
+        if (width > 40) g.append(svg("text", {x: x + 4, y: y0 + d * rowH + 15, fill: "var(--fg)"},
+          [a.p.step != null ? "step " + a.p.step : "", a.p.temp != null ? a.p.temp + "°" : ""].filter(Boolean).join(" · ")));
+      }
+    }
+  }
+  if (!starts.length) g.append(svg("text", {x: x0 + 10, y: y0 + 3 * rowH + 15}, "No periods: the schedule does nothing."));
+}
+
+// ---- clock ----
+function renderClock() {
+  const box = $("clockStats"); box.replaceChildren();
+  const stat = (k, v, cls) => box.append(el("div", {class: "stat"}, el("div", {class: "k"}, k), el("div", {class: "v " + (cls || "")}, v)));
+  const drift = state.clock_drift_s;
+  stat("Nilan clock", V("clock") || (state.table.find(r => r.key === "clock")?.access === "off" ? "not read (register off)" : "–"));
+  stat("Pi clock", new Date(state.now * 1000).toLocaleString("sv-SE"));
+  const a = Math.abs(drift ?? 0), span = a < 120 ? a + " s" : a < 7200 ? Math.floor(a / 60) + " min " + (a % 60) + " s" : (a / 3600).toFixed(1) + " h";
+  stat("Difference", drift == null ? "–" : a <= 5 ? "in sync" : span + " " + (drift > 0 ? "ahead" : "behind"), drift != null && a > 60 ? "warn" : "ok");
+  if (!dirty) $("autoClock").checked = draft.clock_sync;
 }
 
 function renderForm() {
@@ -254,16 +480,16 @@ function renderForm() {
   $("host").value = q.host; $("mport").value = q.port; $("muser").value = q.username; $("mpass").value = "";
   $("mpass").placeholder = q.password_set ? "(saved – leave empty to keep)" : "(none)";
   $("clientId").value = q.client_id; $("topic").value = q.topic; $("prefix").value = q.discovery_prefix;
-  $("devName").value = q.device_name; $("disc").checked = q.discovery;
+  $("devName").value = q.device_name; $("disc").checked = q.discovery; $("autoClock").checked = draft.clock_sync;
   topicHelp(); renderRegs();
+  if (!schedDirty) renderSchedule();
 }
 
 function topicHelp() {
   const t = $("topic").value.trim() || "…";
-  $("topicHelp").textContent = `Values: ${t}/state (JSON) · availability: ${t}/lwt and ${t}/status · commands: ${t}/set/<key>. Entities: sensor.nilan_<key>, number.nilan_<key>, select.nilan_<key>, switch.nilan_<key>.`;
+  $("topicHelp").textContent = `Values: ${t}/state (JSON) · availability: ${t}/lwt and ${t}/status · commands: ${t}/set/<key> · descriptions: ${t}/attributes/<key>. Entities: sensor.nilan_<key>, number.nilan_<key>, select.nilan_<key>, switch.nilan_<key>.`;
 }
 
-// Effective register rows from the draft (built-in + overrides + custom)
 function draftTable() {
   const rows = Object.values(state.builtin).map(b => Object.assign({}, b, draft.registers[b.key] || {}, {builtin: true}));
   for (const c of draft.custom) rows.push(Object.assign({}, c, {builtin: false, writable: c.table === "holding"}));
@@ -286,7 +512,8 @@ function renderRegs() {
   $("regTabs").replaceChildren(...Object.keys(groups).map(g => el("button", {class: "small" + (g === regTab ? " on" : ""), onclick: () => { regTab = g; renderRegs(); }},
     `${names[g]} (${all.filter(groups[g]).length})`)));
   const head = el("tr", {}, ...["Name", "Key", "Register", "Type", "Unit", "Last value", "Access", "Min", "Max", ""].map(h => el("th", {}, h)));
-  const rows = all.filter(groups[regTab]).map(r => {
+  const rows = [];
+  for (const r of all.filter(groups[regTab])) {
     const access = el("select", {onchange: e => { setReg(r, "access", e.target.value); renderRegs(); }},
       el("option", {value: "off"}, "off"), el("option", {value: "read"}, "read"),
       ...(r.writable ? [el("option", {value: "write"}, "write")] : []));
@@ -298,15 +525,15 @@ function renderRegs() {
       return x;
     };
     const kind = r.kind === "number" ? (r.scale && r.scale !== 1 ? "× " + r.scale : "number") : r.kind;
-    const v = state.values[r.key];
-    return el("tr", {class: r.access === "off" ? "off" : ""},
-      el("td", {}, r.name), el("td", {}, el("code", {}, r.key)),
+    const v = V(r.key);
+    rows.push(el("tr", {class: r.access === "off" ? "off" : ""},
+      el("td", {}, r.name, infoButton(openRegInfo, r.key, renderRegs)), el("td", {}, el("code", {}, r.key)),
       el("td", {style: "white-space:nowrap"}, (r.table === "input" ? "IR " : "HR ") + r.address),
-      el("td", {title: r.options ? Object.entries(r.options).map(([k, o]) => k + " = " + o).join(", ") : ""}, kind),
-      el("td", {}, r.unit || ""), el("td", {class: "num"}, v == null ? "–" : fmt(v)),
+      el("td", {}, kind), el("td", {}, r.unit || ""), el("td", {class: "num"}, v == null ? "–" : fmt(v)),
       el("td", {}, access), el("td", {}, lim("min")), el("td", {}, lim("max")),
-      el("td", {}, r.builtin ? "" : el("button", {class: "small", onclick: () => { draft.custom = draft.custom.filter(c => c.key !== r.key); markDirty(); renderRegs(); }}, "Remove")));
-  });
+      el("td", {}, r.builtin ? "" : el("button", {class: "small", onclick: () => { draft.custom = draft.custom.filter(c => c.key !== r.key); markDirty(); renderRegs(); }}, "Remove"))));
+    if (openRegInfo.has(r.key)) rows.push(el("tr", {class: "info"}, el("td", {colspan: 10}, infoBlock(Object.assign({}, r, {range: r.builtin ? state.builtin[r.key].range : ""})))));
+  }
   $("regs").replaceChildren(head, ...rows);
 }
 
@@ -320,6 +547,7 @@ function readForm() {
   draft.mqtt = {host: $("host").value.trim(), port: Number($("mport").value), username: $("muser").value.trim(),
     password: $("mpass").value, client_id: $("clientId").value.trim(), topic: $("topic").value.trim(),
     discovery_prefix: $("prefix").value.trim(), device_name: $("devName").value.trim(), discovery: $("disc").checked};
+  draft.clock_sync = $("autoClock").checked;
   return draft;
 }
 
@@ -329,13 +557,22 @@ async function load() {
     if (r.status === 401) { location.replace("/login"); return; }
     if (!r.ok) throw new Error(r.status + " " + r.statusText);
     state = await r.json();
-    if (!draft || !dirty) { draft = structuredClone(state.settings); renderForm(); }
-    renderStats(); renderValues();
+    if (!draft || (!dirty && !schedDirty)) { draft = structuredClone(state.settings); renderForm(); }
+    renderStats(); renderDiagram(); renderValues(); renderClock();
+    if (!schedDirty) { $("schedNow").textContent = state.schedule.enabled ? `now: ${state.schedule.current || "–"} · next: ${state.schedule.next || "–"}` : "(off)"; }
   } catch (e) { $("error").textContent = "Page could not reach the program: " + e.message; }
 }
 
+async function saveSettings(body, msgEl) {
+  const r = await post("api/settings", body);
+  const b = await r.json().catch(() => ({}));
+  if (r.status === 401) { location.replace("/login"); return false; }
+  if (!r.ok) { msgEl.textContent = "Not saved: " + (b.error || r.status); msgEl.className = "bad"; return false; }
+  state = b; return true;
+}
+
 for (const id of ["port", "baud", "parity", "bytesize", "stopbits", "unit", "timeout", "retries", "gap", "interval",
-                  "host", "mport", "muser", "mpass", "clientId", "topic", "prefix", "devName", "disc"])
+                  "host", "mport", "muser", "mpass", "clientId", "topic", "prefix", "devName", "disc", "autoClock"])
   $(id).addEventListener("input", () => { markDirty(); if (id === "topic") topicHelp(); });
 $("portPick").addEventListener("change", e => { if (e.target.value) { $("port").value = e.target.value; markDirty(); } });
 $("addReg").addEventListener("click", () => {
@@ -345,16 +582,37 @@ $("addReg").addEventListener("click", () => {
     kind: $("cKind").value, scale: Number($("cScale").value), signed: $("cSigned").value === "1", unit: $("cUnit").value.trim(), access: "read"});
   regTab = "on"; markDirty(); renderRegs();
 });
-$("reset").addEventListener("click", () => { draft = structuredClone(state.settings); dirty = false; $("msg").textContent = ""; renderForm(); });
+$("reset").addEventListener("click", () => { draft = structuredClone(state.settings); dirty = false; schedDirty = false; $("msg").textContent = ""; renderForm(); });
 $("save").addEventListener("click", async () => {
-  const msg = $("msg");
   readForm();
-  const r = await post("api/settings", draft);
-  const body = await r.json().catch(() => ({}));
-  if (r.status === 401) { location.replace("/login"); return; }
-  if (!r.ok) { msg.textContent = "Not saved: " + (body.error || r.status); msg.className = "bad"; return; }
-  state = body; draft = structuredClone(state.settings); dirty = false;
-  msg.textContent = "Saved."; msg.className = "ok"; renderForm(); renderStats(); renderValues();
+  if (!await saveSettings(draft, $("msg"))) return;
+  draft = structuredClone(state.settings); dirty = false; schedDirty = false;
+  $("msg").textContent = "Saved."; $("msg").className = "ok"; renderForm(); renderStats(); renderValues();
+});
+// The schedule is saved on its own (with the other saved settings, not the unsaved form)
+$("schedOn").addEventListener("change", e => { draft.schedule.enabled = e.target.checked; markSched(); });
+$("addPeriod").addEventListener("click", () => { draft.schedule.periods.push({days: [0, 1, 2, 3, 4], start: "07:00", step: "2", temp: null}); markSched(); renderSchedule(); });
+$("examplePeriods").addEventListener("click", () => {
+  draft.schedule.periods = [
+    {days: [0, 1, 2, 3, 4], start: "06:30", step: "3", temp: null}, {days: [0, 1, 2, 3, 4], start: "08:30", step: "1", temp: null},
+    {days: [0, 1, 2, 3, 4], start: "16:00", step: "2", temp: null}, {days: [0, 1, 2, 3, 4, 5, 6], start: "22:30", step: "1", temp: null},
+    {days: [5, 6], start: "08:00", step: "2", temp: null}];
+  markSched(); renderSchedule();
+  $("schedMsg").textContent = "Example loaded (not saved): adjust it, then Save schedule.";
+});
+$("saveSched").addEventListener("click", async () => {
+  const body = structuredClone(state.settings);
+  body.schedule = draft.schedule; body.mqtt.password = "";
+  if (!await saveSettings(body, $("schedMsg"))) return;
+  schedDirty = false; draft.schedule = structuredClone(state.settings.schedule);
+  $("schedMsg").textContent = "Saved" + (draft.schedule.enabled ? ": the current period is applied now." : "."); $("schedMsg").className = "ok";
+  renderSchedule(); setTimeout(load, 1500);
+});
+$("syncClock").addEventListener("click", async () => {
+  $("clockMsg").textContent = "setting …";
+  const r = await post("api/write", {key: "sync_clock", value: "PRESS"}); const b = await r.json().catch(() => ({}));
+  $("clockMsg").textContent = r.ok ? "Nilan clock set to " + b.value : "Not set: " + (b.error || r.status);
+  $("clockMsg").className = r.ok ? "ok" : "bad"; load();
 });
 $("readNow").addEventListener("click", async () => { await post("api/read"); $("readMsg").textContent = "reading …"; setTimeout(() => { $("readMsg").textContent = ""; load(); }, 2000); });
 $("test").addEventListener("click", async () => {

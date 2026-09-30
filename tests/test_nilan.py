@@ -8,10 +8,13 @@ import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import datetime                # noqa: E402
+
 import ha                      # noqa: E402
 import modbus_rtu              # noqa: E402
 import poller as poller_mod    # noqa: E402
 import registers as R          # noqa: E402
+import schedule as sched        # noqa: E402
 import settings as S           # noqa: E402
 import sim                     # noqa: E402
 
@@ -72,6 +75,11 @@ class TestRegisters(unittest.TestCase):
     self.assertEqual(R.decode(self.r["display_line_1"], [21825, 20308, 8224, 12576]), "AUTO   1")
     self.assertEqual(R.decode(self.r["display_line_2"], [12606, 8252, 12850, 17375]), ">1< 22°C")
     self.assertEqual(R.decode(self.r["software_version"], [11826, 12594, 30720]), "2.21")
+    self.assertEqual(R.decode(self.r["clock"], [32, 38, 22, 30, 9, 2026]), "2026-09-30 22:38:32")
+    self.assertEqual(R.decode(self.r["alarm_1"], [28]), "E28 Sensor T1 disconnected")
+    self.assertEqual(R.range_text(self.r["temp_setpoint"]), "15 … 28 °C, step 0.5")
+    self.assertEqual(R.range_text(self.r["mode"]), "Off, Heat, Cool, Auto")
+    self.assertNotIn("Erase", R.range_text(self.r["weekly_program"]))
 
   def test_encode(self):
     self.assertEqual(R.encode(self.r["temp_setpoint"], "21.5"), 2150)
@@ -84,6 +92,11 @@ class TestRegisters(unittest.TestCase):
                      ("run", "maybe"), ("ventilation_step", "5"), ("humidity_high_step", "1")):
       with self.assertRaises(ValueError, msg=f"{key}={bad}"):
         R.encode(self.r[key], bad)
+
+  def test_keys_of_1_0_still_exist(self):
+    """Saved settings refer to registers by key: a key that disappears silently drops the user's setting"""
+    old = {"bus_version","software_version","user_function_1_input","user_function_2_input","input_air_filter","input_door_open","input_smoke","input_motor_thermo","input_frost_overheat","t0_controller","t1_intake","t2_inlet","t3_exhaust","t4_outlet","t7_inlet","t8_outdoor","t10_extern","t15_room","humidity","co2","alarm_count","alarm_1","alarm_2","alarm_3","running","mode_actual","control_state","time_in_state","summer","supply_temp_target","control_temp","room_temp_used","exchanger_efficiency","heat_capacity_set","heat_capacity","display_line_1","display_line_2","device_type","exhaust_fan","supply_fan","weekly_program","service_mode","service_capacity","run","mode","ventilation_step","temp_setpoint","alarm_reset","user_function_1","user_function_1_mode","user_function_1_time","user_function_1_step","user_function_1_temp","user_function_1_offset","user_function_2","user_function_2_mode","user_function_2_time","user_function_2_step","user_function_2_temp","user_function_2_offset","air_exchange_mode","cooling_step","cooling_offset","supply_min_summer","supply_min_winter","supply_max_summer","supply_max_winter","summer_changeover","humidity_low_step","humidity_high_step","humidity_limit","humidity_max_time","co2_high_step","co2_low_limit","co2_high_limit"}
+    self.assertEqual(old - set(self.r), set())
 
   def test_table_consistent(self):
     keys = [r["key"] for r in R.BUILTIN]
@@ -100,6 +113,7 @@ class TestRegisters(unittest.TestCase):
           self.assertLess(r["min"], r["max"])
       if r["access"] == "write":
         self.assertTrue(r.get("writable"), r["key"])
+      self.assertGreater(len(r["desc"]), 20, r["key"])
       if r["access"] != "off" and r["kind"] != "button":
         # every register switched on by default answers on our unit (values from 2026-09-30)
         self.assertIn(r["address"], sim.INPUT if r["table"] == "input" else sim.HOLDING, r["key"])
@@ -189,6 +203,7 @@ class TestPoller(unittest.TestCase):
   def setUp(self):
     self.dir = tempfile.mkdtemp()
     poller_mod.ANNOUNCED_FILE = os.path.join(self.dir, "announced.json")
+    poller_mod.SCHEDULE_STATE_FILE = os.path.join(self.dir, "schedule_state.json")
     s = S.defaults()
     s["modbus"]["port"] = "simulate"
     s["mqtt"]["host"] = "broker"
@@ -307,12 +322,96 @@ class TestPoller(unittest.TestCase):
     self.assertEqual(ret["homeassistant/sensor/nilan_cts602/t3_exhaust/config"], "")
     self.assertNotIn("t3_exhaust", self.p.values)
 
+  def test_schedule_applies_once_per_period(self):
+    poller_mod.SCHEDULE_STATE_FILE = os.path.join(self.dir, "schedule_state.json")
+    s = self.settings.get()
+    s["schedule"] = {"enabled": True, "periods": TestSchedule.P}
+    self.settings.update(s)
+    s = self.settings.get()
+    wed_7 = datetime.datetime(2026, 9, 30, 7, 0)
+    self.p._run_schedule(s, wed_7)
+    self.assertEqual(self.p.fake.holding[1003], 3)
+    self.p.fake.holding[1003] = 2                        # someone changes the step by hand
+    self.p._run_schedule(s, wed_7 + datetime.timedelta(minutes=30))
+    self.assertEqual(self.p.fake.holding[1003], 2)        # not re-applied in the same period
+    self.p._run_schedule(s, datetime.datetime(2026, 9, 30, 22, 1))
+    self.assertEqual((self.p.fake.holding[1003], self.p.fake.holding[1004]), (1, 2000))
+    self.assertEqual(sched.load_state(poller_mod.SCHEDULE_STATE_FILE), "2026-09-30 22:00")
+    s["schedule"]["enabled"] = False
+    self.p.fake.holding[1003] = 4
+    self.p._run_schedule(s, datetime.datetime(2026, 10, 1, 6, 31))
+    self.assertEqual(self.p.fake.holding[1003], 4)
+
+  def test_schedule_switch_from_mqtt(self):
+    self.p.bridge.on_command("schedule", "ON")
+    self.p._job(self.settings.get(), self.p.jobs.get_nowait())
+    self.assertTrue(self.settings.get()["schedule"]["enabled"])
+    self.assertEqual(self.state()["schedule"], "ON")
+
+  def test_clock(self):
+    self.assertIsNotNone(self.p.clock_drift)               # the fake clock is fixed in 2026-09-30 22:38:32
+    r = self.job("sync_clock", "PRESS")
+    self.assertTrue(r["ok"])
+    self.assertLessEqual(abs(self.p.clock_drift), 2)
+    self.assertEqual(self.p.fake.writes[-1][0], 305)
+    self.assertEqual(self.p.fake.holding[305], datetime.date.today().year)
+
+  def test_discovery_extras_and_attributes(self):
+    self.p._announce(self.settings.get())
+    ret = self.p.bridge.retained
+    self.assertIn("homeassistant/switch/nilan_cts602/schedule/config", ret)
+    self.assertIn("homeassistant/button/nilan_cts602/sync_clock/config", ret)
+    self.assertIn("homeassistant/sensor/nilan_cts602/clock_drift/config", ret)
+    attr = json.loads(ret["nilan/CTS602/attributes/temp_setpoint"])
+    self.assertEqual(attr["register"], "holding register 1004")
+    self.assertEqual(attr["allowed values"], "15 … 28 °C, step 0.5")
+    cfg = json.loads(ret["homeassistant/number/nilan_cts602/temp_setpoint/config"])
+    self.assertEqual(cfg["json_attributes_topic"], "nilan/CTS602/attributes/temp_setpoint")
+    self.assertEqual(cfg["device"]["sw_version"], "2.21")
+    self.assertEqual(cfg["device"]["hw_version"], "COMFORT, Modbus bus version 5")
+    # switched off -> attributes removed too
+    s = self.settings.get()
+    s["registers"] = {"t3_exhaust": {"access": "off"}}
+    self.settings.update(s)
+    self.p._announce(self.settings.get())
+    self.assertEqual(ret["nilan/CTS602/attributes/t3_exhaust"], "")
+
   def test_mqtt_command_goes_through_queue(self):
     self.p.bridge.on_command("ventilation_step", "2")
     req = self.p.jobs.get_nowait()
     self.p._job(self.settings.get(), req)
     self.assertEqual(self.p.fake.holding[1003], 2)
     self.assertEqual(self.p.st["last_write"]["source"], "Home Assistant")
+
+
+class TestSchedule(unittest.TestCase):
+  P = [{"days": [0, 1, 2, 3, 4], "start": "06:30", "step": "3", "temp": None},
+       {"days": [0, 1, 2, 3, 4, 5, 6], "start": "22:00", "step": "1", "temp": 20.0}]
+
+  def test_current_and_next(self):
+    wed_7 = datetime.datetime(2026, 9, 30, 7, 0)          # a Wednesday
+    start, p = sched.current(self.P, wed_7)
+    self.assertEqual((start, p["step"]), (datetime.datetime(2026, 9, 30, 6, 30), "3"))
+    start, p = sched.upcoming(self.P, wed_7)
+    self.assertEqual(sched.label(start, p), "Wed 22:00 → step 1, 20 °C")
+
+  def test_wraps_over_the_week(self):
+    sat_9 = datetime.datetime(2026, 10, 3, 9, 0)           # Saturday: last start was Friday 22:00
+    start, p = sched.current(self.P, sat_9)
+    self.assertEqual(start, datetime.datetime(2026, 10, 2, 22, 0))
+    mon_6 = datetime.datetime(2026, 10, 5, 6, 0)           # before Monday's first start: Sunday 22:00
+    self.assertEqual(sched.current(self.P, mon_6)[0], datetime.datetime(2026, 10, 4, 22, 0))
+    self.assertEqual(sched.current([], mon_6), (None, None))
+
+  def test_validation(self):
+    good = S.validate(dict(S.defaults(), schedule={"enabled": True, "periods": [
+      {"days": [6, 0, 0], "start": "7:05", "step": 2, "temp": ""}]}))
+    self.assertEqual(good["schedule"]["periods"], [{"days": [0, 6], "start": "07:05", "step": "2", "temp": None}])
+    for bad in ({"days": [], "start": "07:00", "step": "1"}, {"days": [7], "start": "07:00", "step": "1"},
+                {"days": [0], "start": "24:00", "step": "1"}, {"days": [0], "start": "07:00", "step": "5"},
+                {"days": [0], "start": "07:00", "step": None, "temp": None}, {"days": [0], "start": "07:00", "temp": 40}):
+      with self.assertRaises(ValueError, msg=str(bad)):
+        S.validate(dict(S.defaults(), schedule={"enabled": True, "periods": [bad]}))
 
 
 if __name__ == "__main__":

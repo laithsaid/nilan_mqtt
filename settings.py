@@ -45,6 +45,8 @@ def defaults():
     "interval_s": 30,
     "registers": {},
     "custom": [],
+    "schedule": {"enabled": False, "periods": []},
+    "clock_sync": False,
   }
 
 
@@ -101,6 +103,37 @@ def _validate_custom(c, builtin_keys, seen):
       lim = 32767 * scale if out["signed"] else 65535 * scale
       out["min"], out["max"], out["step"] = _limits(key, c, -lim if out["signed"] else 0, lim, c.get("step") or scale)
   return out
+
+
+def _validate_schedule(sch):
+  """{"enabled": bool, "periods": [{"days": [0..6 = Mon..Sun], "start": "HH:MM", "step": "0".."4" | None,
+  "temp": 15..28 | None}]}; sorted by start time"""
+  if not isinstance(sch, dict):
+    raise ValueError("schedule must be an object")
+  periods = sch.get("periods") or []
+  if not isinstance(periods, list) or len(periods) > 50:
+    raise ValueError("schedule: at most 50 periods")
+  out = []
+  for i, p in enumerate(periods, 1):
+    if not isinstance(p, dict):
+      raise ValueError(f"schedule period {i}: must be an object")
+    days = p.get("days") or []
+    if not isinstance(days, list) or not days or any(d not in range(7) for d in days):
+      raise ValueError(f"schedule period {i}: pick at least one day")
+    m = re.match(r"^([01]?\d|2[0-3]):([0-5]\d)$", str(p.get("start", "")).strip())
+    if not m:
+      raise ValueError(f"schedule period {i}: start time HH:MM")
+    step = p.get("step")
+    step = None if step in (None, "") else str(step)
+    if step is not None and step not in regs_mod.STEPS.values():
+      raise ValueError(f"schedule period {i}: step 0-4 or empty")
+    temp = p.get("temp")
+    temp = None if temp in (None, "") else _num(temp, f"schedule period {i} temperature", 15, 28)
+    if step is None and temp is None:
+      raise ValueError(f"schedule period {i}: set a step, a temperature or both")
+    out.append({"days": sorted(set(days)), "start": f"{int(m.group(1)):02d}:{m.group(2)}", "step": step, "temp": temp})
+  out.sort(key=lambda p: p["start"])
+  return {"enabled": bool(sch.get("enabled", False)), "periods": out}
 
 
 def validate(s, old=None):
@@ -176,6 +209,8 @@ def validate(s, old=None):
   if not isinstance(custom, list) or len(custom) > 100:
     raise ValueError("custom registers: a list of at most 100")
   out["custom"] = [_validate_custom(c, builtin, seen) for c in custom]
+  out["schedule"] = _validate_schedule(s.get("schedule") or {})
+  out["clock_sync"] = bool(s.get("clock_sync", False))
   return out
 
 

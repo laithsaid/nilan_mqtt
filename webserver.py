@@ -7,7 +7,8 @@ Password-protected web page (standard library only), same design as the heat-met
   GET  /api/state      values, register table, statistics, settings (without the MQTT password), version
   GET  /api/logs       log lines after ?after=<seq>
   POST /api/settings   new settings
-  POST /api/write      {key, value}: write one register (only access = write, inside its limits)
+  POST /api/write      {key, value}: write one register (only access = write, inside its limits);
+                       key "sync_clock" sets the Nilan clock, key "schedule" (ON/OFF) the week schedule
   POST /api/read       read now
   POST /api/test       connection test (bus version + device type)
 All POSTs need the header X-Requested-With: nilan-web (CSRF guard).
@@ -109,6 +110,7 @@ def serial_ports():
 def _json_safe(r):
   """Register definition for the page (enum options with string keys)"""
   out = dict(r)
+  out["range"] = regs_mod.range_text(r)
   if "options" in out:
     out["options"] = {str(k): v for k, v in out["options"].items()}
   return out

@@ -16,6 +16,10 @@ logger = logging.getLogger(NAME)
 logger.setLevel(logging.INFO)
 logger.propagate = False
 
+try:
+  sys.stdout.reconfigure(errors="replace")      # never fail on a character the console can't show
+except (AttributeError, ValueError):
+  pass
 _console = logging.StreamHandler(sys.stdout)
 _console.setFormatter(logging.Formatter("%(name)s %(levelname)s: %(message)s"))
 logger.addHandler(_console)
