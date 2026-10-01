@@ -422,7 +422,7 @@ function renderSchedule() {
   $("schedOn").checked = sc.enabled;
   $("schedNow").textContent = info.enabled ? `now: ${info.current || "–"} · next: ${info.next || "–"}` : "(off)";
   const wp = V("weekly_program");
-  $("schedWarn").textContent = sc.enabled && wp && wp !== "None" ? `The Nilan's own week program is "${wp}": both will change the step. Set Values → Week program to None.` : "";
+  $("schedWarn").textContent = sc.enabled && wp && wp !== "No program" ? `The Nilan's own week program is "${wp}": both will change the step. Set Values → Week program to No program.` : "";
   const head = el("tr", {}, ...["Days", "Start", "Ventilation step", "Room setpoint (°C)", ""].map(h => el("th", {}, h)));
   const rows = sc.periods.map((p, i) => {
     const days = el("div", {class: "days"}, ...DAYS.map((d, n) => {

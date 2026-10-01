@@ -114,6 +114,9 @@ class TestRegisters(unittest.TestCase):
       if r["access"] == "write":
         self.assertTrue(r.get("writable"), r["key"])
       self.assertGreater(len(r["desc"]), 20, r["key"])
+      for label in (r.get("options") or {}).values():
+        # Home Assistant turns the template result "None" into "no value": the entity would show "unknown"
+        self.assertNotIn(label.lower(), ("none", "true", "false", "null", ""), r["key"])
       if r["access"] != "off" and r["kind"] != "button":
         # every register switched on by default answers on our unit (values from 2026-09-30)
         self.assertIn(r["address"], sim.INPUT if r["table"] == "input" else sim.HOLDING, r["key"])

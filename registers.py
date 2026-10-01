@@ -29,12 +29,14 @@ import re
 
 STEPS = {0: "0", 1: "1", 2: "2", 3: "3", 4: "4"}
 MODES = {0: "Off", 1: "Heat", 2: "Cool", 3: "Auto"}
-USER_FUNCTIONS = {0: "None", 1: "Extended", 2: "Supply air", 3: "Extract air", 4: "External offset", 5: "Ventilate"}
+# Never use the label "None" (or "True" / "False"): Home Assistant reads such a template result as "no value" and the
+# entity shows "unknown".
+USER_FUNCTIONS = {0: "Not used", 1: "Extended", 2: "Supply air", 3: "Extract air", 4: "External offset", 5: "Ventilate"}
 CONTROL_STATES = {0: "Off", 1: "Shift", 2: "Stop", 3: "Start", 4: "Standby", 5: "Ventilation stop", 6: "Ventilation",
                   7: "Heating", 8: "Cooling", 9: "Hot water", 10: "Legionella", 11: "Cooling + hot water",
                   12: "Central heating", 13: "Defrost", 14: "Frost secure", 15: "Service", 16: "Alarm",
                   17: "Heating + hot water"}
-ALARMS = {0: "None", 1: "E01 Hardware error", 2: "E02 Alarm timeout", 3: "E03 Fire alarm", 4: "E04 Pressure switch",
+ALARMS = {0: "No alarm", 1: "E01 Hardware error", 2: "E02 Alarm timeout", 3: "E03 Fire alarm", 4: "E04 Pressure switch",
           5: "E05 Inspection door open", 6: "E06 De-icing error", 7: "E07 Frost thermostat", 8: "E08 Frost thermostat",
           9: "E09 Boiler over temperature", 10: "E10 After-heater over temperature",
           11: "E11 Low flow over electric heater", 12: "E12 Fan motor thermal switch",
@@ -51,7 +53,7 @@ DEVICE_TYPES = {2: "Comfort light", 3: "Comfort Polar", 13: "COMFORT", 31: "COMF
 AIR_EXCHANGE = {0: "Energy", 1: "Comfort", 2: "Comfort water"}
 COOL_OFFSET = {0: "Cooling off", 1: "+0 °C", 2: "+1 °C", 3: "+2 °C", 4: "+3 °C", 5: "+4 °C", 6: "+5 °C",
                7: "+7 °C", 8: "+10 °C"}
-WEEK_PROGRAMS = {0: "None", 1: "Program 1", 2: "Program 2", 3: "Program 3"}   # 4 = Erase: deliberately left out
+WEEK_PROGRAMS = {0: "No program", 1: "Program 1", 2: "Program 2", 3: "Program 3"}   # 4 = Erase: deliberately left out
 
 T = dict(kind="number", scale=0.01, unit="°C", device_class="temperature", state_class="measurement")
 PCT = dict(kind="number", scale=0.01, unit="%", state_class="measurement")
@@ -150,7 +152,7 @@ BUILTIN = [
      desc="Number of alarms in the alarm list (0-3). Details in Alarm 1-3; clear them with 'Reset alarms' after "
           "fixing the cause (e.g. change the filter for E19)."),
   _r("alarm_1", "Alarm 1", "input", 401, kind="enum", options=ALARMS, icon="mdi:alert",
-     desc="First alarm in the list: code and text (see the Nilan alarm list). 'None' = no alarm."),
+     desc="First alarm in the list: code and text (see the Nilan alarm list). 'No alarm' when the list is empty."),
   _r("alarm_2", "Alarm 2", "input", 404, kind="enum", options=ALARMS, icon="mdi:alert", desc="Second alarm in the list."),
   _r("alarm_3", "Alarm 3", "input", 407, kind="enum", options=ALARMS, icon="mdi:alert", desc="Third alarm in the list."),
   _r("display_line_1", "Display line 1", "input", 2002, kind="text", count=4, icon="mdi:monitor", **DIAG,
@@ -208,10 +210,10 @@ BUILTIN = [
      desc="Clears all alarms (writes 255). Fix the cause first, otherwise the alarm comes back."),
   _r("weekly_program", "Week program", "holding", 500, "write", kind="enum", options=WEEK_PROGRAMS, writable=True,
      icon="mdi:calendar-week",
-     desc="Which of the controller's own week programs runs: None, Program 1, Program 2 or Program 3. Programs 1 "
+     desc="Which of the controller's own week programs runs: No program, Program 1, Program 2 or Program 3. Programs 1 "
           "and 2 are Nilan's presets, program 3 is the user program set up on the panel; the times and steps inside "
           "them can't be read or changed over Modbus on this controller. For a schedule you can see and edit, use "
-          "the schedule on this page (and set this to None). 'Erase' (4) is deliberately not offered."),
+          "the schedule on this page (and set this to No program). 'Erase' (4) is deliberately not offered."),
 
   _r("user_function_1", "User function 1 active", "holding", 600, "read", kind="bool", writable=True,
      icon="mdi:gesture-tap-button",
@@ -219,7 +221,7 @@ BUILTIN = [
           "set to (e.g. Extended = boost ventilation) for 'User function 1 time'. Read only by default; set to "
           "write on the page to use it as a boost switch."),
   _r("user_function_1_mode", "User function 1", "holding", 601, "write", kind="enum", options=USER_FUNCTIONS, **CONF,
-     desc="What user function 1 does: None; Extended = run at 'ventilation step' + 'temperature' for the set time "
+     desc="What user function 1 does: Not used; Extended = run at 'ventilation step' + 'temperature' for the set time "
           "(boost / party); Supply air = supply fan only; Extract air = extract fan only; External offset = shift "
           "the room setpoint by 'offset'; Ventilate = ventilation at the set step."),
   _r("user_function_1_time", "User function 1 time", "holding", 602, "write", kind="number", scale=1, unit="min",
