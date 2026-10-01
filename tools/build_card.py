@@ -294,7 +294,7 @@ class NilanUnitCard extends HTMLElement {
       ha-card { display: block; overflow: hidden; height: 100%; }
       #root { position: relative; }
       svg { display: block; width: 100%; height: auto; }
-      .label { position: absolute; cursor: pointer; white-space: nowrap; font-weight: 600;
+      .label { position: absolute; cursor: pointer; white-space: nowrap; font-weight: 600; line-height: 1.6;
                font-family: Consolas, 'Roboto Mono', monospace; }
       .label > div { padding: 8px; white-space: nowrap; }
       ${CSS}

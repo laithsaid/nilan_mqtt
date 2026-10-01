@@ -43,6 +43,15 @@ def parse_meta(payload: str | bytes | None) -> dict[str, Any] | None:
     return meta
 
 
+@callback
+def find_device(hass: HomeAssistant, identifier: tuple[str, str]) -> dr.DeviceEntry | None:
+    """The device with this identifier (a plain search: works on every Home Assistant version)."""
+    for device in dr.async_get(hass).devices.values():
+        if identifier in device.identifiers:
+            return device
+    return None
+
+
 def entities_signature(meta: dict[str, Any]) -> str:
     """Changes when an entity is added, removed or described differently (then the entry is reloaded)."""
     return json.dumps(sorted(meta["entities"], key=lambda e: e.get("key", "")), sort_keys=True)
@@ -136,11 +145,12 @@ class NilanHub:
     @callback
     def _update_device(self) -> None:
         """Versions arrive after the reader's first read: keep the device page up to date without a reload."""
-        registry = dr.async_get(self.hass)
-        device = registry.async_get_device(identifiers={(DOMAIN, self.node)})
+        device = find_device(self.hass, (DOMAIN, self.node))
         info = (self.meta or {}).get("device") or {}
         if device and (device.sw_version != info.get("sw_version") or device.hw_version != info.get("hw_version")):
-            registry.async_update_device(device.id, sw_version=info.get("sw_version"), hw_version=info.get("hw_version"))
+            dr.async_get(self.hass).async_update_device(
+                device.id, sw_version=info.get("sw_version"), hw_version=info.get("hw_version")
+            )
 
     @callback
     def _on_state(self, msg: mqtt.ReceiveMessage) -> None:

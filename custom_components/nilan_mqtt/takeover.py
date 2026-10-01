@@ -25,6 +25,7 @@ from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 
 from .const import CONF_SNAPSHOT, CONF_TAKEOVER_DONE, DOMAIN
+from .hub import find_device
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -66,7 +67,7 @@ def _snapshot(hass: HomeAssistant, node: str, entries: list[er.RegistryEntry]) -
             "disabled_by": _plain(e.disabled_by),
             "options": _plain(e.options),
         }
-    device = dr.async_get(hass).async_get_device(identifiers={("mqtt", node)})
+    device = find_device(hass, ("mqtt", node))
     return {
         "entities": entities,
         "device": {
@@ -152,13 +153,12 @@ def async_restore(hass: HomeAssistant, entry: ConfigEntry, hub) -> None:
             continue
         restored += 1
     old_device = snapshot.get("device") or {}
-    devices = dr.async_get(hass)
-    device = devices.async_get_device(identifiers={(DOMAIN, hub.node)})
+    device = find_device(hass, (DOMAIN, hub.node))
     if device and old_device:
         changes = {k: old_device[k] for k in ("area_id", "name_by_user") if old_device.get(k)}
         if old_device.get("labels"):
             changes["labels"] = set(old_device["labels"])
         if changes:
-            devices.async_update_device(device.id, **changes)
+            dr.async_get(hass).async_update_device(device.id, **changes)
     hass.config_entries.async_update_entry(entry, data={**entry.data, CONF_TAKEOVER_DONE: True})
     _LOGGER.info("Take-over done: %d entities of %s keep their ids and settings", restored, hub.topic)
