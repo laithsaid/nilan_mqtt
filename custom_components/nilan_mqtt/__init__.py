@@ -18,6 +18,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryError, ConfigEntryNotReady
 from homeassistant.helpers import config_validation as cv, device_registry as dr
 from homeassistant.helpers.typing import ConfigType
+from homeassistant.loader import async_get_integration
 
 from . import takeover
 from .const import (
@@ -40,18 +41,43 @@ NilanConfigEntry = ConfigEntry[NilanHub]
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
-    """Serve the dashboard card and load it in the frontend."""
+    """Serve the dashboard card and make the dashboards load it."""
     card = Path(__file__).parent / "www" / CARD_FILE
-    version = await hass.async_add_executor_job(_card_version, card)
-    if version is not None:
-        await hass.http.async_register_static_paths([StaticPathConfig(CARD_URL, str(card), False)])
-        add_extra_js_url(hass, f"{CARD_URL}?v={version}")
+    if not await hass.async_add_executor_job(card.is_file):
+        return True
+    await hass.http.async_register_static_paths([StaticPathConfig(CARD_URL, str(card), False)])
+    version = (await async_get_integration(hass, DOMAIN)).version
+    await _async_register_card(hass, f"{CARD_URL}?v={version}")
     return True
 
 
-def _card_version(card: Path) -> int | None:
-    """Changes when the card file changes, so browsers fetch the new one."""
-    return int(card.stat().st_mtime) if card.is_file() else None
+async def _async_register_card(hass: HomeAssistant, url: str) -> None:
+    """Add the card to the dashboard resources (Settings -> Dashboards -> Resources), or update its version there.
+
+    A resource is loaded by every browser and the app the next time a dashboard opens. `add_extra_js_url` alone is not
+    enough: it only reaches a browser after its cached start page is refreshed, and until then the card is missing.
+    It is the fallback for dashboards kept in YAML, which have no resource list to add to.
+    """
+    lovelace = hass.data.get("lovelace")
+    resources = getattr(lovelace, "resources", None)
+    if resources is None and isinstance(lovelace, dict):
+        resources = lovelace.get("resources")
+    if resources is None or not hasattr(resources, "async_create_item"):
+        add_extra_js_url(hass, url)
+        return
+    try:
+        if not getattr(resources, "loaded", True):
+            await resources.async_load()
+            resources.loaded = True
+        for item in resources.async_items():
+            if str(item.get("url", "")).split("?")[0] == CARD_URL:
+                if item["url"] != url:
+                    await resources.async_update_item(item["id"], {"res_type": "module", "url": url})
+                return
+        await resources.async_create_item({"res_type": "module", "url": url})
+    except Exception:  # noqa: BLE001 - the card must not keep the integration from loading
+        _LOGGER.exception("Could not add %s to the dashboard resources; loading it as an extra module", url)
+        add_extra_js_url(hass, url)
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: NilanConfigEntry) -> bool:

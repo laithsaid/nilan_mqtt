@@ -100,6 +100,9 @@ so a register switched on there shows up in Home Assistant by itself.
 ```yaml
 type: custom:nilan-unit-card
 ```
+The integration adds the card to the dashboard resources by itself (Settings → Dashboards → ⋮ → Resources:
+`/nilan_mqtt/nilan-unit-card.js`). If a browser shows "Custom element doesn't exist", reload the page once.
+
 The animated drawing of the unit with live values (air temperatures, heat recovery, fans, mode, steps, humidity,
 after-heater, alarms, room panel). The air moves at the speed of the actual step; bypass, after-heater, defrost, alarm and
 "unit stopped" are shown when they happen. A click on a value opens the entity. Options: `prefix` (default `nilan`) and
