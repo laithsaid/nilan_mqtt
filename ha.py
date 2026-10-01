@@ -8,7 +8,11 @@ An entity is available while the program runs (<topic>/lwt) and the unit answers
 Every entity gets attributes (description, register, range) from <topic>/attributes/<key>.
 
 Extra entities that are not registers: switch.nilan_schedule (the page's week schedule on/off),
-sensor.nilan_schedule_next, button.nilan_sync_clock, sensor.nilan_clock_drift.
+sensor.nilan_schedule_next, button.nilan_sync_clock, sensor.nilan_clock_drift, and two calculated ones:
+sensor.nilan_actual_step (from the extract fan speed) and sensor.nilan_temperature_loss (T3 - T7).
+
+<topic>/meta (retained, always sent) describes the same entities for the Home Assistant integration
+(custom_components/nilan_mqtt): it builds its entities from it instead of from the discovery messages.
 """
 
 import json
@@ -26,9 +30,21 @@ EXTRAS = [
        category="config",
        desc="Sets the Nilan controller's clock to the Raspberry Pi's time (the Nilan week programs and alarm log use it)."),
   dict(key="clock_drift", name="Nilan clock drift", kind="number", access="read", unit="s", device_class="duration",
-       state_class="measurement", icon="mdi:clock-alert-outline", category="diagnostic",
+       state_class="measurement", icon="mdi:clock-alert-outline", category="diagnostic", needs=("clock",),
        desc="Nilan clock minus the Pi's clock in seconds (negative = the Nilan is behind)."),
+  dict(key="actual_step", name="Ventilation step (actual)", kind="number", access="read", icon="mdi:fan-chevron-up",
+       needs=("exhaust_fan",),
+       desc="The step the unit really runs (0-4), worked out from the extract fan speed. 'Ventilation step' is only the "
+            "step you chose; the humidity control (after a shower) and user functions run the fans higher without "
+            "changing it."),
+  dict(key="temperature_loss", name="Temperature loss (T3 − T7)", kind="number", access="read", unit="°C",
+       device_class="temperature", state_class="measurement", icon="mdi:thermometer-minus",
+       needs=("t3_exhaust", "t7_inlet"),
+       desc="Extract air (T3) minus supply air (T7): how much colder the fresh air blown into the rooms is than the "
+            "air taken out of them."),
 ]
+
+META_PROTOCOL = 1      # raise when <topic>/meta changes in a way an older integration can't read
 
 
 def node_id(topic):
@@ -47,7 +63,7 @@ def component(r):
 def _entities(table):
   rows = [r for r in table if r["access"] != "off" and component(r)]
   keys = {r["key"] for r in rows}
-  extras = [e for e in EXTRAS if e["key"] != "clock_drift" or "clock" in keys]
+  extras = [e for e in EXTRAS if all(k in keys for k in e.get("needs", ()))]
   return rows + [dict(e, table="", address=None, extra=True) for e in extras]
 
 
@@ -116,3 +132,25 @@ def attributes(mqtt_cfg, table):
       a["allowed values"] = rng
     out[f"{mqtt_cfg['topic']}/attributes/{r['key']}"] = json.dumps(a, ensure_ascii=False)
   return out
+
+
+def meta(mqtt_cfg, table, device_info=None, version=""):
+  """<topic>/meta: everything the Home Assistant integration needs to build the entities itself. Made from the
+  discovery messages, so both ways of connecting describe the same entities."""
+  attrs = {t.rsplit("/", 1)[1]: json.loads(p) for t, p in attributes(mqtt_cfg, table).items()}
+  entities, device = [], {}
+  for topic, payload in configs(mqtt_cfg, table, device_info).items():
+    c = json.loads(payload)
+    comp, key = topic.split("/")[-4], topic.split("/")[-2]
+    device = {k: v for k, v in c["device"].items() if k != "identifiers"}
+    e = {"key": key, "component": comp, "name": c["name"], "entity_id": c["default_entity_id"],
+         "attributes": attrs.get(key, {})}
+    for k in ("icon", "entity_category", "unit_of_measurement", "device_class", "state_class", "min", "max", "step",
+              "options"):
+      if k in c:
+        e[k] = c[k]
+    entities.append(e)
+  return json.dumps({"protocol": META_PROTOCOL, "program": "nilan-mqtt", "version": version,
+                     "topic": mqtt_cfg["topic"], "node": node_id(mqtt_cfg["topic"]),
+                     "discovery": bool(mqtt_cfg["discovery"]), "discovery_prefix": mqtt_cfg["discovery_prefix"],
+                     "device": device, "entities": entities}, ensure_ascii=False)

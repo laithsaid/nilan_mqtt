@@ -1,0 +1,51 @@
+{
+  "config": {
+    "flow_title": "{name}",
+    "step": {
+      "user": {
+        "title": "Nilan CTS 602 (MQTT)",
+        "description": "The nilan-mqtt reader must be running (version 1.2.0 or newer) and connected to the same MQTT broker as Home Assistant. Enter the MQTT topic set on the reader's page.",
+        "data": {
+          "topic": "MQTT topic of the reader"
+        }
+      },
+      "confirm": {
+        "title": "Add {name}?",
+        "description": "Reader nilan-mqtt {version} on topic `{topic}` offers {entities} entities.\n\nEntities of this reader that Home Assistant already has through MQTT discovery: **{found}**. Taking them over keeps their entity ids, history, statistics and your settings (names, areas, display precision); the reader's own discovery is switched off. Without taking over you get every entity twice.",
+        "data": {
+          "takeover": "Take over the existing MQTT entities"
+        }
+      }
+    },
+    "error": {
+      "mqtt_unavailable": "Home Assistant's MQTT integration is not set up or not connected.",
+      "no_meta": "Nothing found on this topic. Is the reader running, version 1.2.0 or newer, and is the topic right?",
+      "newer_protocol": "The reader is newer than this integration understands. Update the integration."
+    },
+    "abort": {
+      "already_configured": "This reader is already set up.",
+      "invalid_discovery_info": "The message found is not from a nilan-mqtt reader.",
+      "newer_protocol": "The reader is newer than this integration understands. Update the integration."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Nilan CTS 602 (MQTT)",
+        "data": {
+          "silence_minutes": "Minutes without values before a warning under Repairs"
+        }
+      }
+    }
+  },
+  "issues": {
+    "reader_offline": {
+      "title": "{name}: the nilan-mqtt reader is not running",
+      "description": "Nothing has come from the reader on `{topic}` for {minutes} minutes: the program is stopped, the computer it runs on is off, or it lost the MQTT broker. Check the service (`systemctl status nilan-mqtt`) and the reader's page. The warning disappears when values come again."
+    },
+    "unit_silent": {
+      "title": "{name}: the Nilan does not answer the reader",
+      "description": "The reader on `{topic}` runs but has not had an answer from the Nilan for {minutes} minutes. Check the RS485 adapter and cable, and the Modbus settings on the reader's page. The warning disappears when values come again."
+    }
+  }
+}

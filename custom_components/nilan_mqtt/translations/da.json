@@ -1,0 +1,51 @@
+{
+  "config": {
+    "flow_title": "{name}",
+    "step": {
+      "user": {
+        "title": "Nilan CTS 602 (MQTT)",
+        "description": "Programmet nilan-mqtt skal køre (version 1.2.0 eller nyere) og være forbundet til samme MQTT-broker som Home Assistant. Skriv det MQTT-emne, der er valgt på programmets side.",
+        "data": {
+          "topic": "Programmets MQTT-emne"
+        }
+      },
+      "confirm": {
+        "title": "Tilføj {name}?",
+        "description": "nilan-mqtt {version} på emnet `{topic}` tilbyder {entities} entiteter.\n\nEntiteter fra dette program, som Home Assistant allerede har gennem MQTT-discovery: **{found}**. Når de overtages, beholder de deres entitets-id, historik, statistik og dine indstillinger (navne, områder, antal decimaler); programmets egen discovery slås fra. Uden overtagelse får du hver entitet to gange.",
+        "data": {
+          "takeover": "Overtag de eksisterende MQTT-entiteter"
+        }
+      }
+    },
+    "error": {
+      "mqtt_unavailable": "Home Assistants MQTT-integration er ikke sat op eller ikke forbundet.",
+      "no_meta": "Intet fundet på dette emne. Kører programmet, er det version 1.2.0 eller nyere, og er emnet rigtigt?",
+      "newer_protocol": "Programmet er nyere, end denne integration forstår. Opdater integrationen."
+    },
+    "abort": {
+      "already_configured": "Dette program er allerede sat op.",
+      "invalid_discovery_info": "Den fundne besked kommer ikke fra et nilan-mqtt-program.",
+      "newer_protocol": "Programmet er nyere, end denne integration forstår. Opdater integrationen."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Nilan CTS 602 (MQTT)",
+        "data": {
+          "silence_minutes": "Minutter uden værdier, før der kommer en advarsel under Reparationer"
+        }
+      }
+    }
+  },
+  "issues": {
+    "reader_offline": {
+      "title": "{name}: programmet nilan-mqtt kører ikke",
+      "description": "Der er ikke kommet noget fra programmet på `{topic}` i {minutes} minutter: programmet er stoppet, computeren er slukket, eller forbindelsen til MQTT-brokeren er væk. Tjek tjenesten (`systemctl status nilan-mqtt`) og programmets side. Advarslen forsvinder, når der kommer værdier igen."
+    },
+    "unit_silent": {
+      "title": "{name}: Nilan-anlægget svarer ikke programmet",
+      "description": "Programmet på `{topic}` kører, men har ikke fået svar fra Nilan-anlægget i {minutes} minutter. Tjek RS485-adapteren og kablet og Modbus-indstillingerne på programmets side. Advarslen forsvinder, når der kommer værdier igen."
+    }
+  }
+}

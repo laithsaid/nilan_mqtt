@@ -302,6 +302,21 @@ BUILTIN = [
 ]
 
 KINDS = ("number", "enum", "bool", "text", "button", "clock")
+
+# The CTS 602 only reports the step the user chose (HR 1003); its humidity control and user functions run the fans higher
+# without changing it, and the "actual step" registers (IR 1100-1102) do not answer on our unit. So the step the unit
+# really runs is worked out from the extract fan speed. Limits = halfway between the steps measured on our Comfort 300
+# on 2026-10-01 (extract fan 27 / 46 / 64 / 100 % at steps 1 / 2 / 3 / 4); the installer sets these speeds per unit.
+STEP_FAN_LIMITS = (36.5, 55.0, 82.0)
+
+
+def actual_step(extract_fan_pct):
+  """Extract fan speed in % -> ventilation step 0-4 (None when the speed is unknown)"""
+  if not isinstance(extract_fan_pct, (int, float)):
+    return None
+  if extract_fan_pct < 1:
+    return 0
+  return 1 + sum(extract_fan_pct >= limit for limit in STEP_FAN_LIMITS)
 KEY_RE = re.compile(r"^[a-z0-9_]{1,40}$")
 
 

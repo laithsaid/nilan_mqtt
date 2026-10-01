@@ -7,7 +7,9 @@ MQTT (topic from the page, default nilan/CTS602):
   <topic>/status       "online" after a good read, "read error" after FAILS_BEFORE_UNAVAILABLE failed reads (retained)
   <topic>/lwt          program online / offline (bridge.py)
   <topic>/set/<key>    commands; only registers with access "write", only values inside min..max / the options;
-                       plus set/schedule (ON/OFF) and set/sync_clock (PRESS)
+                       plus set/schedule (ON/OFF), set/sync_clock (PRESS) and set/ha_discovery (ON/OFF: the
+                       Home Assistant integration switches the discovery off when it takes the entities over)
+  <topic>/meta         description of all entities for the Home Assistant integration (retained, see ha.py)
   <topic>/attributes/<key>   description, register and range of each entity (retained, HA shows them as attributes)
   <prefix>/<component>/<node>/<key>/config   discovery (retained); removed again when a register is switched off
 
@@ -158,11 +160,18 @@ class Poller(threading.Thread):
 
   # ---- publishing ----
   def _extras(self, s):
-    """Values that are not registers: schedule on/off + next change, clock drift"""
+    """Values that are not registers: schedule on/off + next change, clock drift, actual step, temperature loss"""
     info = self.schedule_info(s)
     out = {"schedule": "ON" if info["enabled"] else "OFF", "schedule_next": info["next"] or "none"}
     if self.clock_drift is not None:
       out["clock_drift"] = self.clock_drift
+    with self.lock:
+      fan, t3, t7 = (self.values.get(k) for k in ("exhaust_fan", "t3_exhaust", "t7_inlet"))
+    step = regs_mod.actual_step(fan)
+    if step is not None:
+      out["actual_step"] = step
+    if isinstance(t3, (int, float)) and isinstance(t7, (int, float)):
+      out["temperature_loss"] = round(t3 - t7, 2)
     return out
 
   def _publish_state(self, s):
@@ -199,6 +208,8 @@ class Poller(threading.Thread):
     table = self.table(s)
     wanted = ha.configs(s["mqtt"], table, self.device_info()) if s["mqtt"]["discovery"] else {}
     attributes = ha.attributes(s["mqtt"], table) if s["mqtt"]["discovery"] else {}
+    self.bridge.publish(s["mqtt"]["topic"] + "/meta", ha.meta(s["mqtt"], table, self.device_info(), self.version),
+                        retain=True)
     before = self._load_announced()
     for topic in before - set(wanted) - set(attributes):
       self.bridge.publish(topic, "", retain=True)
@@ -208,7 +219,9 @@ class Poller(threading.Thread):
     if before != now:
       self._save_announced(now)
     removed = len({t for t in before - now if t.endswith("/config")})
-    logger.info(f"Home Assistant discovery: {len(wanted)} entities" + (f", {removed} removed" if removed else ""))
+    logger.info((f"Home Assistant discovery: {len(wanted)} entities" if s["mqtt"]["discovery"] else
+                 "Home Assistant discovery is off (entities come from the integration or not at all)") +
+                (f", {removed} removed" if removed else ""))
     self._publish_state(s)
     self.bridge.publish(s["mqtt"]["topic"] + "/status", "online" if self.fails < FAILS_BEFORE_UNAVAILABLE and
                         self.st["last_ok"] else "read error", retain=True)
@@ -375,6 +388,15 @@ class Poller(threading.Thread):
     self.settings.update(new, who=source)
     return {"ok": True, "value": text}
 
+  def _set_discovery(self, payload, source):
+    text = str(payload).strip().upper()
+    if text not in ("ON", "OFF"):
+      raise ValueError("ha_discovery: expected ON or OFF")
+    new = self.settings.get()
+    new["mqtt"]["discovery"] = text == "ON"
+    self.settings.update(new, who=source)        # -> _apply -> the discovery messages are sent or removed
+    return {"ok": True, "value": text}
+
   def _job(self, s, req):
     try:
       if req.key is None:                                  # connection test
@@ -392,6 +414,8 @@ class Poller(threading.Thread):
         req.result = {"ok": True, "note": "the Nilan clock is set at the next full minute"}
       elif req.key == "schedule":
         req.result = self._set_schedule(s, req.value, req.source)
+      elif req.key == "ha_discovery":
+        req.result = self._set_discovery(req.value, req.source)
       else:
         req.result = self._do_write(s, req.key, req.value, req.source)
     except Exception as e:           # keep the only Modbus thread alive whatever goes wrong

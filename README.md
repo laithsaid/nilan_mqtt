@@ -3,7 +3,13 @@
 Reads and controls a **Nilan Comfort 300 ventilation unit (CTS 602 controller)** over **Modbus RTU** (RS485 USB adapter)
 and connects it to **Home Assistant through MQTT**. A password-protected HTTPS web page sets everything up.
 
-Version 1.0 (2026-09-30) is a rewrite (1.1: descriptions, versions, diagram, week schedule, clock); the old Flask/pymodbus version is in the git history (commits before 1.0).
+Version 1.0 (2026-09-30) is a rewrite (1.1: descriptions, versions, diagram, week schedule, clock; 1.2: Home Assistant
+integration with its own dashboard card); the old Flask/pymodbus version is in the git history (commits before 1.0).
+
+Two halves in this repository:
+- **the reader** (the files in the root): runs next to the Nilan's RS485 adapter, e.g. on a Raspberry Pi;
+- **the Home Assistant integration** (`custom_components/nilan_mqtt`, installed with HACS): shows the Nilan as a device with
+  its entities and ships the card. It gets everything from the reader over MQTT.
 Sister programs on the same Raspberry Pi: [kamstrup2mqtt](https://github.com/laithsaid/kamstrup2mqtt) (heat meter, :8080)
 and flowiq2mqtt (water meter, :8081).
 
@@ -14,7 +20,9 @@ and flowiq2mqtt (water meter, :8081).
 | `registers.py` | The CTS 602 register table (what exists on a Comfort 300, scaling, options, limits, which are writable) |
 | `poller.py` | The only thread that talks Modbus: reads every *interval*, does the writes, publishes, HA discovery |
 | `bridge.py` | MQTT client (paho): connects with the page's settings, receives commands from HA |
-| `ha.py` | Home Assistant discovery: sensor / binary_sensor for read, number / select / switch / button for write |
+| `ha.py` | Home Assistant discovery (sensor / binary_sensor for read, number / select / switch / button for write) and the `/meta` description for the integration |
+| `custom_components/nilan_mqtt/` | The Home Assistant integration: set-up form, entities, take-over of the discovery entities, Repairs warning, diagnostics, `www/nilan-unit-card.js` |
+| `tools/build_card.py` | Builds the dashboard card (the drawing is made there) |
 | `webserver.py`, `web/` | The page: values (+ change them), Modbus settings + connection test, MQTT settings, register table, log |
 | `settings.py` | Settings from the page, checked and saved in `settings.json` (mode 600, has the MQTT password) |
 | `schedule.py` | The week schedule run by this program (see below) |
@@ -60,6 +68,42 @@ sets it to the Pi's time at the next full minute (the controller ignores the sec
 - `nilan/CTS602/set/<key>`: commands, e.g. `set/temp_setpoint` = `21.5`, `set/mode` = `Auto`, `set/run` = `OFF`
 - `nilan/CTS602/attributes/<key>`: description, register and allowed values (shown as attributes in HA)
 - `homeassistant/<component>/nilan_cts602/<key>/config`: discovery; entities `sensor.nilan_<key>`, `number.nilan_<key>`, ...
+  (only while "Home Assistant discovery" is on; the integration switches it off when it takes over)
+- `nilan/CTS602/meta`: the description of all entities for the integration (retained, always sent)
+- `nilan/CTS602/set/ha_discovery`: `ON` / `OFF`, the same as the discovery setting on the page
+
+Calculated values (also entities): `actual_step` = the step the unit really runs, from the extract fan speed (the CTS 602
+only reports the step you chose; limits in `registers.py` `STEP_FAN_LIMITS`, measured on our unit), and
+`temperature_loss` = T3 extract − T7 supply.
+
+## Home Assistant
+Two ways, same entities and entity ids:
+
+**A. MQTT discovery only** (nothing to install in Home Assistant): leave "Home Assistant discovery" on. The entities appear
+under the MQTT integration.
+
+**B. The integration** (own device page, set-up form, dashboard card, a Repairs warning when the reader or the unit goes
+silent, diagnostics download):
+1. HACS → ⋮ → Custom repositories → `https://github.com/laithsaid/nilan_mqtt`, type *Integration* → download
+   "Nilan CTS 602 (MQTT)" → restart Home Assistant. (By hand: copy `custom_components/nilan_mqtt` into `/config/custom_components/`.)
+2. The reader (1.2.0 or newer) must run and use the same MQTT broker. Home Assistant then offers "Nilan … found" under
+   Settings → Devices & services; or Add integration → Nilan CTS 602 (MQTT) and type the topic.
+3. If the entities already exist through MQTT discovery, leave **Take over the existing MQTT entities** ticked: every entity
+   keeps its entity id (so history, statistics, dashboards and automations go on) and your settings (name, area, labels,
+   display precision, hidden / disabled); the reader's discovery is switched off.
+   Going back: remove the integration and switch "Home Assistant discovery" on again on the reader's page.
+
+What is writable is still decided on the reader's page; the integration builds its entities from the reader's description,
+so a register switched on there shows up in Home Assistant by itself.
+
+### The card
+```yaml
+type: custom:nilan-unit-card
+```
+The animated drawing of the unit with live values (air temperatures, heat recovery, fans, mode, steps, humidity,
+after-heater, alarms, room panel). The air moves at the speed of the actual step; bypass, after-heater, defrost, alarm and
+"unit stopped" are shown when they happen. A click on a value opens the entity. Options: `prefix` (default `nilan`) and
+`entities:` (key → entity id) if your entity ids differ.
 
 ## Install on the Pi
 ```
@@ -76,4 +120,5 @@ Then open https://192.168.1.121:8082/, set the serial port (`/dev/serial/by-id/u
 press **Save**, then **Test connection**. The Nilan CTS 602 defaults: 19200 baud, 8E1, unit 30.
 
 ## Tests
-`python -m unittest discover -s tests` (uses the fake Nilan; no hardware or broker needed).
+`python -m unittest discover -s tests` (uses the fake Nilan; no hardware or broker needed). They cover the reader; the
+integration is tested on a running Home Assistant.

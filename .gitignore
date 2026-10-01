@@ -8,3 +8,4 @@ web_auth.json
 web_*.pem
 schedule_state.json
 schedule_state.json.tmp
+tools/card_preview.html

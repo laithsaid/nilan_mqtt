@@ -362,6 +362,66 @@ class TestPoller(unittest.TestCase):
     self.assertEqual(self.p.fake.writes[-1][0], 305)
     self.assertEqual(self.p.fake.holding[305], datetime.date.today().year)
 
+  def test_calculated_values(self):
+    self.assertEqual([R.actual_step(p) for p in (0, 27, 36.4, 46, 64, 82, 100, None, "x")],
+                     [0, 1, 1, 2, 3, 4, 4, None, None])
+    v = self.state()
+    self.assertEqual(v["actual_step"], 4)               # the fake unit's extract fan runs at 100 %
+    self.assertEqual(v["temperature_loss"], 0.67)       # T3 21.88 - T7 21.21
+    self.p._announce(self.settings.get())
+    ret = self.p.bridge.retained
+    step = json.loads(ret["homeassistant/sensor/nilan_cts602/actual_step/config"])
+    self.assertEqual(step["default_entity_id"], "sensor.nilan_actual_step")
+    self.assertNotIn("unit_of_measurement", step)       # shown as a state, like the ventilation step
+    self.assertEqual(json.loads(ret["homeassistant/sensor/nilan_cts602/temperature_loss/config"])["unit_of_measurement"], "°C")
+    # without the registers they are made from, they are not offered
+    s = self.settings.get()
+    s["registers"] = {"exhaust_fan": {"access": "off"}, "t7_inlet": {"access": "off"}}
+    self.settings.update(s)
+    self.p._announce(self.settings.get())
+    self.assertEqual(ret["homeassistant/sensor/nilan_cts602/actual_step/config"], "")
+    self.assertEqual(ret["homeassistant/sensor/nilan_cts602/temperature_loss/config"], "")
+    self.assertNotIn("actual_step", self.state())
+
+  def test_meta(self):
+    self.p._announce(self.settings.get())
+    ret = self.p.bridge.retained
+    meta = json.loads(ret["nilan/CTS602/meta"])
+    self.assertEqual((meta["protocol"], meta["topic"], meta["node"], meta["discovery"]), (1, "nilan/CTS602", "nilan_cts602", True))
+    self.assertEqual(meta["device"], {"name": "Nilan Comfort 300", "manufacturer": "Nilan", "model": "Comfort 300 (CTS 602)",
+                                      "sw_version": "2.21", "hw_version": "COMFORT, Modbus bus version 5"})
+    by_key = {e["key"]: e for e in meta["entities"]}
+    configs = {t.split("/")[-2]: json.loads(p) for t, p in ret.items() if t.endswith("/config")}
+    self.assertEqual(set(by_key), set(configs))          # the same entities both ways
+    number = by_key["temp_setpoint"]
+    self.assertEqual((number["component"], number["entity_id"], number["min"], number["max"], number["step"]),
+                     ("number", "number.nilan_temp_setpoint", 15, 28, 0.5))
+    self.assertEqual(number["attributes"]["register"], "holding register 1004")
+    self.assertEqual(by_key["mode"]["options"], ["Off", "Heat", "Cool", "Auto"])
+    self.assertEqual(by_key["bus_version"]["entity_category"], "diagnostic")
+    self.assertEqual(by_key["t3_exhaust"]["state_class"], "measurement")
+    for e in meta["entities"]:
+      for k in ("name", "icon", "unit_of_measurement", "device_class", "entity_category"):
+        self.assertEqual(e.get(k), configs[e["key"]].get(k), (e["key"], k))
+      self.assertGreater(len(e["attributes"]["description"]), 20, e["key"])
+
+  def test_discovery_switched_off_by_the_integration(self):
+    self.p._announce(self.settings.get())
+    ret = self.p.bridge.retained
+    self.assertTrue(self.job("ha_discovery", "off")["ok"])
+    self.assertFalse(self.settings.get()["mqtt"]["discovery"])
+    self.p._announce(self.settings.get())
+    self.assertEqual(ret["homeassistant/sensor/nilan_cts602/t3_exhaust/config"], "")
+    self.assertEqual(ret["nilan/CTS602/attributes/t3_exhaust"], "")
+    meta = json.loads(ret["nilan/CTS602/meta"])           # still sent, with the same entities
+    self.assertFalse(meta["discovery"])
+    self.assertIn("t3_exhaust", {e["key"] for e in meta["entities"]})
+    self.assertEqual(self.state()["t3_exhaust"], 21.88)
+    self.assertFalse(self.job("ha_discovery", "maybe")["ok"])
+    self.assertTrue(self.job("ha_discovery", "ON")["ok"])
+    self.p._announce(self.settings.get())
+    self.assertIn("default_entity_id", json.loads(ret["homeassistant/sensor/nilan_cts602/t3_exhaust/config"]))
+
   def test_discovery_extras_and_attributes(self):
     self.p._announce(self.settings.get())
     ret = self.p.bridge.retained
